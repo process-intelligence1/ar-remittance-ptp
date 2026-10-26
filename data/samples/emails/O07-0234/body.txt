@@ -1,0 +1,9 @@
+From: alerts@firstlakeshorebank.example
+Subject: Your monthly statement is ready / FX rate alert
+Date: 2026-10-20 14:32:05
+
+Dear Client,
+
+Your e-statement for September is available in online banking. EUR/USD has crossed your alert level.
+
+This is an automated message, please do not reply.

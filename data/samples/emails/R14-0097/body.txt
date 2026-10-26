@@ -1,0 +1,21 @@
+From: shiharai@fujimoto-precision.co.jp
+Subject: 振込通知書（Fujimoto Precision Industries Ltd.）
+Date: 2026-10-26 13:42:35
+
+Acme Japan K.K.
+経理ご担当者様
+
+いつも大変お世話になっております。
+
+下記の通りお振込みいたしましたのでご連絡いたします。
+
+請求書番号                  支払金額
+  JP-26-002696         USD 2,300.78
+
+合計: USD 2,300.78
+振込日: 2026/10/25
+振込番号: FT25591567644
+
+今後ともよろしくお願い申し上げます。
+Fujimoto Precision Industries Ltd.
+Kyoto

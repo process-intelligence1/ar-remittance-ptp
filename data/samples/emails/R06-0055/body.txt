@@ -1,0 +1,21 @@
+From: accounts.payable@meridianholdings.com
+Subject: Remittance - Meridian Holdings Inc.
+Date: 2026-10-21 13:04:15
+
+Dear Accounts Receivable,
+
+Payment details below:
+
+Invoice No.            Amount paid
+  90032587             USD 19,353.68
+
+Total paid: USD 19,353.68
+Payment date: 2026-10-21
+Payment reference: FT77481556286
+
+Thanks,
+Finance Department
+Meridian Holdings Inc.
+Chicago
+--
+Please consider the environment before printing this email.

@@ -1,0 +1,23 @@
+From: ap@highlandspirits.co.uk
+Subject: Payment notification
+Date: 2026-10-20 15:02:31
+
+Dear Sir/Madam,
+
+We have made the following payment:
+
+Invoice No.            Amount paid
+  UK-1043448           £9,060.40
+  UK-1043606           £4,339.10
+  UK-1043891           £4,302.70
+  INV-UK-1043709       £4,560.00
+
+Total paid: £22,262.20
+Payment date: 19/10/2026
+Payment reference: TRF78536832
+
+Best regards,
+Highland Spirits Distillers Ltd
+Inverness
+--
+Please consider the environment before printing this email.

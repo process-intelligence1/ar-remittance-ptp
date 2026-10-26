@@ -1,0 +1,26 @@
+From: shiharai@fujimoto-precision.co.jp
+Subject: 振込通知書（Fujimoto Precision Industries Ltd.）
+Date: 2026-10-23 08:34:37
+
+Acme Japan K.K.
+経理ご担当者様
+
+いつも大変お世話になっております。
+
+下記の通りお振込みいたしましたのでご連絡いたします。
+
+請求書番号                  支払金額
+  INVJP-26-002344      JPY 1,635,700
+  RE JP-26-002478      JPY 500,390
+  INVJP-26-002610      JPY 3,418,800
+
+合計: JPY 5,554,890
+振込日: 2026/10/20
+振込番号: TRF62176436
+
+今後ともよろしくお願い申し上げます。
+Accounts Payable Team
+Fujimoto Precision Industries Ltd.
+Kyoto
+--
+This email and any attachments are confidential and intended solely for the addressee.

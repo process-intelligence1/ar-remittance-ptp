@@ -1,0 +1,19 @@
+From: ekonomi@lindqvist.se
+Subject: Payment notification
+Date: 2026-10-27 17:49:38
+
+Dear Sir/Madam,
+
+Payment details below:
+
+Invoice No.            Amount paid
+  90032216             SEK 40 841,42
+
+Total paid: SEK 40 841,42
+Payment date: 2026-10-24
+Payment reference: TRF99942386
+
+Thanks,
+Accounts Payable Team
+Lindqvist Industri AB
+Goeteborg

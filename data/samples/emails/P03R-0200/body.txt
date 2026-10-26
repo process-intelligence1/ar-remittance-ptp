@@ -1,0 +1,20 @@
+From: accounts.payable@deccanpharma.co.in
+Subject: Payment for 2 invoices
+Date: 2026-11-15 11:05:00
+
+Hello,
+
+We have made the following payment:
+
+Invoice No.            Amount paid
+  MUM/2627/04649       Rs. 9,13,508.80
+  MUM/2627/04655       Rs. 22,97,959.91
+
+Total paid: Rs. 32,11,468.71
+Payment date: 13-Nov-2026
+Payment reference: TRF45457739
+
+Kind regards,
+Accounts Payable Team
+Deccan Pharma Ltd.
+Hyderabad
