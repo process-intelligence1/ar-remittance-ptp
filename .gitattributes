@@ -1,0 +1,29 @@
+# Let Git detect text files and normalise them in the repository.
+* text=auto
+
+# Files that run on Linux (container, GitHub Actions) must use LF line endings.
+*.py        text eol=lf
+*.sh        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.bicep     text eol=lf
+*.json      text eol=lf
+*.toml      text eol=lf
+*.ini       text eol=lf
+*.mako      text eol=lf
+Dockerfile  text eol=lf
+.dockerignore text eol=lf
+
+# Windows-only scripts keep CRLF.
+*.ps1       text eol=crlf
+
+# Binary files: never touch.
+*.xlsx binary
+*.xls  binary
+*.docx binary
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.tif  binary
+*.tiff binary

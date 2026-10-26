@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "pgAdminLogin": { "value": "aradmin" },
+    "containerImage": { "value": "ghcr.io/process-intelligence1/ar-api:latest" },
+    "ghcrUsername": { "value": "process-intelligence1" },
+    "corsOrigins": { "value": "http://localhost:5173" },
+    "businessDate": { "value": "2026-10-28" }
+  }
+}

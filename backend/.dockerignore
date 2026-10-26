@@ -1,0 +1,18 @@
+# Keep the image small and never copy secrets into it.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.env
+*.env
+*.env.local
+client_secret*.json
+*token*.json
+*.pem
+*.key
+*.log
+tests/
+Dockerfile
+.dockerignore
