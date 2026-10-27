@@ -82,9 +82,10 @@ one plain sentence before running it, and summarise results in plain language.
   ar-api, cae-ar-demo, psql-ar-demo-snjjnahqgx3b4 (B1ms, data loaded), kv-ardemo-snjjnahqgx3b4,
   id-ar-api, log-ar-demo, policy "allowed resource types"; budget-ar-demo ($1) on the subscription.
   Azure account processintelligence1@outlook.com (Free Trial, spending limit on).
-  Code deploys: push to main -> .github/workflows/deploy.yml (OIDC, environment "demo", no reviewer:
-  GitHub Free). Infra deploys: .\infra\deploy.ps1 [-WhatIf] (rotates DB password each run).
-  Image ghcr.io/process-intelligence1/ar-api is PUBLIC: no GHCR pull token (removed from Bicep + Key Vault).
+  Code deploys: push to main -> .github/workflows/deploy.yml (OIDC, environment "demo"; the build runs,
+  then the deploy WAITS for the owner's approval - required reviewer). Infra deploys: .\infra\deploy.ps1 [-WhatIf] (rotates DB password each run).
+  Image ghcr.io/process-intelligence1/ar-api is PUBLIC (240 MB compressed): no GHCR pull token (removed from
+  Bicep + Key Vault 27 Oct 2026). Run deploy.ps1 with -NoClientIp (the laptop uses its local database).
 - M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
@@ -100,7 +101,7 @@ one plain sentence before running it, and summarise results in plain language.
   docs/reports/M02_samples_report.md (234/234 samples parse). app/documents/: PDF text layer or OCR
   per page (mixed), images, DOCX, XLSX (data_only, ISO dates), CSV, HTML; body tables (HTML or
   aligned text). Reuse by SHA-256 (parse_reused). 120 s per-document deadline. Docker image has
-  Tesseract + 7 languages; workflow keeps only the 3 newest GHCR versions (500 MB free limit).
+  Tesseract + 7 languages; workflow keeps the 3 newest GHCR versions + the running one.
   OCR in Azure: only 1-2 test files on the API container until the M06 worker.
 - M03 done (classification) - see docs/modules/M03_classification.md and
   docs/reports/M03_classification_report.md. app/classification/: keyword rules (EN/DE/FR/ES/PT/JA,
@@ -108,7 +109,7 @@ one plain sentence before running it, and summarise results in plain language.
   ar.rule_config "classification". Samples 234/234 (rules, and rules + model cross-validated); new
   hand-written wording first try 15/18 (data/eval/classification_unseen.json - both batches since used
   for fixes). scikit-learn is LAPTOP-ONLY (requirements-dev.txt, training); the image predicts with numpy
-  from app/classification/model.npz because GHCR is at ~491/500 MB. Retrain: scripts.train_classifier.
+  from app/classification/model.npz (keeps the image ~50 MB smaller). Retrain: scripts.train_classifier.
   scripts.classify; POST /api/admin/emails/{ref}/classify; Gmail labels AR-Remittance/AR-PTP/AR-OutOfScope
   only where Gmail is polled (Azure). Tests must never reach real Gmail (conftest turns POLLER_ENABLED on).
 - Public repo + image (27 Oct 2026): gitleaks scan of full history, files and stored images was clean
