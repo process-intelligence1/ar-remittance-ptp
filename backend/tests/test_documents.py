@@ -225,6 +225,16 @@ def test_language_detection_is_repeatable():
 
 
 # --------------------------------------------------------------------------- database: parse_email, reuse
+def _hide_existing_copies(db, email):
+    """The laptop database may already hold a parsed copy of the same sample file (which would be
+    reused). Mark those PENDING inside the test's transaction (rolled back afterwards)."""
+    shas = db.scalars(select(EmailAttachment.sha256).where(EmailAttachment.email_id == email.id)).all()
+    for a in db.scalars(select(EmailAttachment).where(EmailAttachment.sha256.in_(shas),
+                                                      EmailAttachment.email_id != email.id)):
+        a.parse_status = "PENDING"
+    db.flush()
+
+
 def test_parse_email_saves_results_and_reuses_identical_files(db, storage):
     raw = build_message(load_sample("R22-0128")).as_bytes()  # body-only
     e1 = store_email(db, raw, storage=storage, gmail_id="m02-a")
@@ -232,6 +242,7 @@ def test_parse_email_saves_results_and_reuses_identical_files(db, storage):
     e2 = store_email(db, msg.as_bytes(), storage=storage, gmail_id="m02-b")
     e3 = store_email(db, msg.as_bytes(), storage=storage, gmail_id="m02-c")  # same PNG again
     db.commit()
+    _hide_existing_copies(db, e2)
 
     s1 = parse_email(db, e1, storage=storage)
     assert (s1.parsed, s1.body_tables, e1.status, e1.language) == (0, 1, "PARSED", "en")
@@ -252,11 +263,7 @@ def test_parse_failure_is_recorded_not_raised(db, storage, monkeypatch):
     e = store_email(db, build_message(load_sample("R01-0007")).as_bytes(), storage=storage, gmail_id="m02-t")
     db.commit()
     monkeypatch.setattr(get_settings(), "doc_timeout_s", 0.001)
-    # make sure the PNG is not reused from an earlier test
-    for a in db.scalars(select(EmailAttachment).where(EmailAttachment.sha256 == db.scalars(
-            select(EmailAttachment.sha256).where(EmailAttachment.email_id == e.id)).first())):
-        if a.email_id != e.id:
-            a.parse_status = "PENDING"
+    _hide_existing_copies(db, e)  # otherwise the PNG would be reused instead of read (and timed out)
     s = parse_email(db, e, storage=storage)
     [a] = db.scalars(select(EmailAttachment).where(EmailAttachment.email_id == e.id)).all()
     assert (s.failed, a.parse_status, e.status) == (1, "FAILED", "FAILED") and a.parse_error.startswith("timeout")
