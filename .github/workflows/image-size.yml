@@ -1,0 +1,29 @@
+# Build the API image WITHOUT pushing or deploying and report where its size goes (layers,
+# largest Python packages, system libraries, Tesseract data). Compares with main.
+# Run it from the Actions tab ("Run workflow"), or by pushing the branch size-check.
+name: Image size report
+
+on:
+  push:
+    branches: [size-check]
+  workflow_dispatch:
+
+jobs:
+  size:
+    name: Build and measure (no push)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: This branch
+        run: bash .github/scripts/image_size_report.sh backend "${GITHUB_REF_NAME}"
+
+      - name: main, for comparison
+        if: github.ref != 'refs/heads/main'
+        run: |
+          git worktree add /tmp/main origin/main
+          bash .github/scripts/image_size_report.sh /tmp/main/backend "main (deployed)"
