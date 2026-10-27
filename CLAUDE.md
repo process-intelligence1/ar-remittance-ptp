@@ -76,5 +76,7 @@ one plain sentence before running it, and summarise results in plain language.
 - M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
-  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (258 pass).
+  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (275 pass).
+  Whole inbox is processed (NO date cut-off) except system senders in rule "ignored_senders"
+  (not stored; audit EMAIL_IGNORED + Gmail label AR-Ignored). scripts.purge_ignored removes old ones.
 - Next: M02 document reading/OCR, then M03-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.

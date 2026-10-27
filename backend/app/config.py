@@ -38,9 +38,9 @@ class Settings(BaseSettings):
     gmail_client_secret_file: str = ""  # laptop only: OAuth Desktop client (used by scripts.gmail_auth)
     gmail_token_file: str = ""          # laptop: token written by scripts.gmail_auth
     gmail_token_json: str = ""          # Azure: the same token content, injected from Key Vault
-    gmail_ingest_since: str = ""        # optional cut-off date YYYY-MM-DD; empty = whole inbox
     gmail_processed_label: str = "AR-Processed"
     gmail_outbound_label: str = "AR-Outbound"
+    gmail_ignored_label: str = "AR-Ignored"  # system senders (rule "ignored_senders"): not stored
     gmail_max_per_poll: int = 100
 
     # --- Sample e-mails (data/samples/emails/<CODE>/) ----------------------------

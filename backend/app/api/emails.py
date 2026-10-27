@@ -55,5 +55,6 @@ def poll_now(max_messages: int = Query(50, ge=1, le=200), db: Session = Depends(
     except PollAlreadyRunning as exc:
         raise HTTPException(409, str(exc)) from exc
     return {"fetched": r.fetched, "stored": r.stored, "already_stored": r.already_stored,
-            "skipped_outbound": r.skipped_outbound, "failed": r.failed, "email_refs": r.email_refs,
+            "skipped_outbound": r.skipped_outbound, "ignored": r.ignored, "failed": r.failed,
+            "email_refs": r.email_refs,
             "errors": r.errors}

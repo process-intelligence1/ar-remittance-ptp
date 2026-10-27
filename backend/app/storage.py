@@ -40,6 +40,7 @@ def _clean_path(path: str) -> str:
 class Storage(Protocol):
     def put(self, path: str, data: bytes, content_type: str | None = None) -> str: ...
     def get(self, uri: str) -> bytes: ...
+    def delete(self, uri: str) -> None: ...  # no error if the file is already gone
 
 
 class LocalStorage:
@@ -57,6 +58,15 @@ class LocalStorage:
 
     def get(self, uri: str) -> bytes:
         return (self.root / _clean_path(_strip_scheme(uri, self.scheme))).read_bytes()
+
+    def delete(self, uri: str) -> None:
+        target = self.root / _clean_path(_strip_scheme(uri, self.scheme))
+        target.unlink(missing_ok=True)
+        # remove folders that became empty, up to (not including) the root
+        for folder in target.parents:
+            if folder == self.root or not folder.is_relative_to(self.root) or any(folder.iterdir()):
+                break
+            folder.rmdir()
 
 
 class AzureBlobStorage:
@@ -79,6 +89,14 @@ class AzureBlobStorage:
 
     def get(self, uri: str) -> bytes:
         return self.container.download_blob(_clean_path(_strip_scheme(uri, self.scheme))).readall()
+
+    def delete(self, uri: str) -> None:
+        from azure.core.exceptions import ResourceNotFoundError
+
+        try:
+            self.container.delete_blob(_clean_path(_strip_scheme(uri, self.scheme)))
+        except ResourceNotFoundError:
+            pass
 
 
 def _strip_scheme(uri: str, scheme: str) -> str:

@@ -1,0 +1,52 @@
+"""Ignored system senders (rule "ignored_senders" in ar.rule_config).
+
+E-mails from these senders are NOT stored - no body, no files - only an audit entry and
+the Gmail label AR-Ignored. A listed domain also covers its sub-domains; patterns are
+shell-style on the full address (e.g. "noreply@*").
+"""
+from dataclasses import dataclass
+from fnmatch import fnmatchcase
+
+from sqlalchemy.orm import Session
+
+from app.models.ar import RuleConfig
+from app.rules_defaults import IGNORED_SENDERS
+
+REASON = "ignored system sender"
+
+
+@dataclass(frozen=True)
+class SenderIgnoreList:
+    domains: tuple[str, ...]
+    patterns: tuple[str, ...]
+
+    @classmethod
+    def from_value(cls, value: dict | None) -> "SenderIgnoreList":
+        value = value or {}
+        return cls(tuple(d.strip().lower().lstrip("@.") for d in value.get("domains", []) if d.strip()),
+                   tuple(p.strip().lower() for p in value.get("patterns", []) if p.strip()))
+
+    def match(self, address: str | None) -> str | None:
+        """The rule that matches `address` (e.g. "domain github.com"), or None."""
+        if not address or "@" not in address:
+            return None
+        address = address.strip().lower()
+        domain = address.rsplit("@", 1)[1]
+        for d in self.domains:
+            if domain == d or domain.endswith("." + d):
+                return f"domain {d}"
+        for p in self.patterns:
+            if fnmatchcase(address, p):
+                return f"pattern {p}"
+        return None
+
+    def match_any(self, *addresses: str | None) -> str | None:
+        for a in addresses:
+            if rule := self.match(a):
+                return rule
+        return None
+
+
+def load_ignore_list(db: Session) -> SenderIgnoreList:
+    row = db.get(RuleConfig, "ignored_senders")
+    return SenderIgnoreList.from_value(row.value if row else IGNORED_SENDERS)

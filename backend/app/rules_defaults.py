@@ -5,7 +5,19 @@ After that, the database copy is the one the app uses (and the AR Supervisor can
 change it from the screens). Edit here only to change the factory defaults.
 """
 
+IGNORED_SENDERS = {
+    # a domain also covers its sub-domains (mail.anthropic.com, accountprotection.microsoft.com, ...)
+    "domains": ["github.com", "google.com", "accounts.google.com", "microsoft.com", "azure.com",
+                "anthropic.com", "claude.ai", "claude.com"],
+    # shell-style patterns on the full address (* = anything)
+    "patterns": ["no-reply@*", "noreply@*"],
+}
+
 DEFAULT_RULES: dict[str, tuple[dict, str]] = {
+    "ignored_senders": (
+        IGNORED_SENDERS,
+        "System senders whose e-mails are NOT stored: only an audit entry and the Gmail label AR-Ignored.",
+    ),
     "scoring_weights": (
         {"digit_evidence": 0.35, "amount_alignment": 0.30, "sender_company": 0.10,
          "customer_name": 0.05, "date_proxy": 0.10, "normalization_max": 0.90},

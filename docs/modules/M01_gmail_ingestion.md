@@ -9,6 +9,12 @@
   SHA-256 fingerprint. Laptop: `data\runtime\emails\EML-…\`. Azure: Blob container `ar-files`.
 - **Labels in Gmail**: `AR-Processed` after storing; our own outgoing e-mails
   (`X-AR-Demo: outbound`) get `AR-Outbound` and are skipped.
+- **The whole inbox is processed** (no date cut-off) — except **system senders**: rule
+  `ignored_senders` in `ar.rule_config` (domains github.com, google.com, accounts.google.com,
+  microsoft.com, azure.com, anthropic.com, claude.ai, claude.com — incl. their sub-domains —
+  and patterns `no-reply@*`, `noreply@*`). Their e-mails are **not stored** (no body, no files):
+  only an audit entry `EMAIL_IGNORED` (date, sender, reason "ignored system sender") and the
+  Gmail label `AR-Ignored`. Checked on the real From and, for forwards, the original sender.
 - **Sample sender**: puts a sample from `data/samples/emails/<CODE>/` into the inbox with the
   **customer as sender** (Gmail "import" — nothing is e-mailed to anyone).
 
@@ -42,7 +48,9 @@ Laptop (VS Code terminal, in `D:\Finance\AR_Remittance\backend`, venv active):
 python -m scripts.send_sample R01-0007          # one or more codes
 python -m scripts.poll_gmail                    # read new inbox e-mails once
 python -m scripts.poll_gmail                    # again: "stored 0" (no duplicates)
-python -m pytest                                # 258 tests
+python -m scripts.purge_ignored                 # LIST stored e-mails from ignored senders
+python -m scripts.purge_ignored --yes           # ... and delete them (rows + files, relabel AR-Ignored)
+python -m pytest                                # 275 tests
 ```
 Azure:
 - `POST https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io/api/admin/gmail/poll` — poll now
@@ -51,7 +59,12 @@ Azure:
 
 Results on 27 Oct 2026: laptop stored 39 inbox e-mails (incl. R01-0007 with its PNG and
 R30-0165 whose ZIP contains a PDF); second poll stored 0. Azure stored R01-0007 as
-EML-000001 with the identical SHA-256; second poll stored 0.
+EML-000001 with the identical SHA-256; second poll stored 0. After adding the ignore list,
+18 already-stored system e-mails (GitHub, Google, Microsoft, Anthropic) were deleted on the
+laptop (20 files) and relabelled `AR-Ignored`; 21 e-mails remain. Azure had none to delete.
+
+To change the ignore list: edit the `ignored_senders` row in `ar.rule_config` (screens for
+rules come later); the default is in `backend/app/rules_defaults.py`.
 
 ## One-time setup (already done)
 1. Google Cloud: Gmail API enabled, OAuth client type **Desktop**, your address as test user.
@@ -66,9 +79,8 @@ EML-000001 with the identical SHA-256; second poll stored 0.
 - ⚠️ **The Google app is in Testing mode → the Gmail token expires after 7 days** (about
   3 Nov 2026). Then: run step 3 and 4 again (and restart the app, or wait ≤30 min).
   Publishing to "In production" needs privacy/terms pages — planned in M08.
-- The poller takes **every** inbox e-mail, including non-AR mail (GitHub, Google, receipts).
-  Classification (M03) will mark these OUT_OF_SCOPE. Set `GMAIL_INGEST_SINCE=YYYY-MM-DD` to
-  ignore older mail if ever needed.
+- Non-AR mail from senders **not** on the ignore list (e.g. personal Gmail addresses) is
+  still stored; classification (M03) will mark it OUT_OF_SCOPE.
 - The laptop and Azure read the **same inbox**: whichever polls first takes a message (the
   label hides it from the other). Use one of them at a time.
 - Polling is manual (script or API) until the scheduled worker in M06.

@@ -2,6 +2,7 @@
 
 Rules
 - Fetch inbox messages WITHOUT label AR-Processed; skip AR-Outbound and header X-AR-Demo: outbound.
+- System senders (rule "ignored_senders") are NOT stored: audit entry + label AR-Ignored only.
 - Store the raw .eml and every attachment (ZIPs unpacked recursively, children -> parent_id).
 - Idempotent: gmail_id is unique; a message already in the database is only (re)labelled.
 - After a successful database commit the message gets label AR-Processed.
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.gmail import parsing
 from app.gmail.client import build_service, ensure_label
+from app.gmail.ignore import REASON as IGNORE_REASON, SenderIgnoreList, load_ignore_list
 from app.models.ar import AuditLog, EmailAttachment, EmailMessage, RuleConfig
 from app.storage import Storage, get_storage, sha256_hex
 
@@ -32,6 +34,7 @@ class PollResult:
     stored: int = 0
     already_stored: int = 0
     skipped_outbound: int = 0
+    ignored: int = 0
     failed: int = 0
     email_refs: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -52,20 +55,20 @@ def next_email_ref(db: Session) -> str:
 
 def gmail_query() -> str:
     s = get_settings()
-    q = f'in:inbox -label:"{s.gmail_processed_label}" -label:"{s.gmail_outbound_label}"'
-    if s.gmail_ingest_since:
-        q += f" after:{s.gmail_ingest_since.replace('-', '/')}"
-    return q
+    # The whole inbox is processed (no date cut-off); only already-handled messages are excluded.
+    return (f'in:inbox -label:"{s.gmail_processed_label}" -label:"{s.gmail_outbound_label}"'
+            f' -label:"{s.gmail_ignored_label}"')
 
 
 # --------------------------------------------------------------------------- storing one e-mail
 def store_email(db: Session, raw: bytes, *, storage: Storage | None = None, gmail_id: str | None = None,
                 thread_id: str | None = None, internal_date_ms: int | None = None,
-                source: str = "gmail") -> EmailMessage:
+                source: str = "gmail", parsed: parsing.ParsedEmail | None = None,
+                forward: parsing.ForwardInfo | None = None) -> EmailMessage:
     """Parse and store one raw e-mail with its attachments. Caller commits."""
     storage = storage or get_storage()
-    p = parsing.parse_raw_email(raw)
-    fwd = parsing.detect_forward(p.body_text)
+    p = parsed or parsing.parse_raw_email(raw)
+    fwd = forward or parsing.detect_forward(p.body_text)
     sample_code = (p.headers.get(SAMPLE_HEADER) or "").strip() or None
 
     sender_name, sender_email = p.from_name, p.from_email
@@ -179,6 +182,8 @@ def _poll(db: Session, service, storage: Storage | None, max_messages: int | Non
     storage = storage or get_storage()
     processed_id = ensure_label(service, s.gmail_processed_label)
     outbound_id = ensure_label(service, s.gmail_outbound_label)
+    ignored_id = ensure_label(service, s.gmail_ignored_label)
+    ignore_list = load_ignore_list(db)
     limit = max_messages or s.gmail_max_per_poll
     result = PollResult()
 
@@ -208,8 +213,16 @@ def _poll(db: Session, service, storage: Storage | None, max_messages: int | Non
                 result.skipped_outbound += 1
                 label(gmail_id, outbound_id)
                 continue
+            parsed = parsing.parse_raw_email(raw)
+            fwd = parsing.detect_forward(parsed.body_text)
+            if record_ignored(db, ignore_list, parsed, fwd, gmail_id):
+                db.commit()
+                result.ignored += 1
+                label(gmail_id, ignored_id)
+                continue
             email = store_email(db, raw, storage=storage, gmail_id=gmail_id, thread_id=msg.get("threadId"),
-                                internal_date_ms=int(msg.get("internalDate", 0)) or None)
+                                internal_date_ms=int(msg.get("internalDate", 0)) or None,
+                                parsed=parsed, forward=fwd)
             db.commit()
             result.stored += 1
             result.email_refs.append(email.email_ref)
@@ -220,6 +233,24 @@ def _poll(db: Session, service, storage: Storage | None, max_messages: int | Non
             result.errors.append(f"{gmail_id}: {type(exc).__name__}: {exc}")
             log.exception("Failed to ingest Gmail message %s", gmail_id)
     return result
+
+
+def record_ignored(db: Session, ignore_list: SenderIgnoreList, parsed: parsing.ParsedEmail,
+                   fwd: parsing.ForwardInfo, gmail_id: str | None) -> bool:
+    """If the sender is an ignored system sender, write ONLY an audit entry (no body, no files)."""
+    rule = ignore_list.match_any(parsed.from_email, fwd.sender_email if fwd.is_forwarded else None)
+    if not rule:
+        return False
+    already = db.scalar(select(AuditLog.id).where(AuditLog.action == "EMAIL_IGNORED", AuditLog.entity_id == gmail_id))
+    if already and gmail_id:  # recorded before, only the Gmail label was missing
+        return True
+    db.add(AuditLog(
+        business_date=current_business_date(db), actor="system", entity_type="email", entity_id=gmail_id,
+        action="EMAIL_IGNORED",
+        details={"date": parsed.date.isoformat() if parsed.date else None, "sender": parsed.from_email,
+                 "reason": IGNORE_REASON, "rule": rule, "gmail_id": gmail_id},
+    ))
+    return True
 
 
 def _is_outbound(raw: bytes) -> bool:

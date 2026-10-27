@@ -18,7 +18,7 @@ def main(argv: list[str]) -> int:
     with SessionLocal() as db:
         r = poll(db, max_messages=max_messages)
         print(f"fetched {r.fetched} | stored {r.stored} | already stored {r.already_stored} | "
-              f"skipped outbound {r.skipped_outbound} | failed {r.failed}")
+              f"skipped outbound {r.skipped_outbound} | ignored system senders {r.ignored} | failed {r.failed}")
         for ref in r.email_refs:
             e = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == ref))
             atts = db.scalars(select(EmailAttachment).where(EmailAttachment.email_id == e.id)

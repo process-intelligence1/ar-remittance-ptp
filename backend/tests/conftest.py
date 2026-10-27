@@ -66,7 +66,7 @@ class FakeGmail:
 
     # ---- messages
     def list(self, userId, q=None, pageToken=None, maxResults=100):  # noqa: N803 - Gmail API names
-        excluded = {self.labels.get("AR-Processed"), self.labels.get("AR-Outbound")}
+        excluded = {self.labels.get("AR-Processed"), self.labels.get("AR-Outbound"), self.labels.get("AR-Ignored")}
         ids = [{"id": m["id"]} for m in self.messages.values()
                if "INBOX" in m["labelIds"] and not excluded & set(m["labelIds"])]
         return _Call(lambda: {"messages": ids[:maxResults]})
@@ -79,10 +79,14 @@ class FakeGmail:
             if self.fail_modify_once:
                 self.fail_modify_once = False
                 raise RuntimeError("simulated Gmail outage while labelling")
-            self.modify_calls.append((id, body["addLabelIds"]))
+            self.modify_calls.append((id, body.get("addLabelIds", [])))
+            labels = self.messages[id]["labelIds"]
             for lid in body.get("addLabelIds", []):
-                if lid not in self.messages[id]["labelIds"]:
-                    self.messages[id]["labelIds"].append(lid)
+                if lid not in labels:
+                    labels.append(lid)
+            for lid in body.get("removeLabelIds", []):
+                if lid in labels:
+                    labels.remove(lid)
             return {"id": id}
         return _Call(run)
 
