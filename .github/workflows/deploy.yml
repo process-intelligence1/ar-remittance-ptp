@@ -125,11 +125,15 @@ jobs:
           owner="${GITHUB_REPOSITORY_OWNER}"
           # compressed sizes as stored in the registry. A version is either an image manifest
           # (config + layers) or an image index (older builds with attestations) -> add its children.
+          # A child of an old index may already be deleted (it was its own "version"): count it as 0.
           image_size() {
-            local raw; raw=$(docker buildx imagetools inspect --raw "$IMAGE@$1")
+            local raw
+            if ! raw=$(docker buildx imagetools inspect --raw "$IMAGE@$1" 2>/dev/null); then
+              echo "missing ${1:7:12}" >> missing.txt; echo 0; return
+            fi
             if echo "$raw" | jq -e '.manifests' > /dev/null; then
-              local s=0
-              for c in $(echo "$raw" | jq -r '.manifests[].digest'); do s=$((s + $(image_size "$c"))); done
+              local s=0 c n
+              for c in $(echo "$raw" | jq -r '.manifests[].digest'); do n=$(image_size "$c"); s=$((s + n)); done
               echo "$s"
             else
               echo "$raw" | jq -r '.layers[]? | "\(.digest) \(.size)"' >> layers.txt
@@ -137,7 +141,7 @@ jobs:
             fi
           }
           digests=$(gh api "/users/$owner/packages/container/ar-api/versions" --paginate --jq '.[].name')
-          : > layers.txt; total=0; summary=""
+          : > layers.txt; : > missing.txt; total=0; summary=""
           for d in $digests; do
             size=$(image_size "$d")
             tags=$(gh api "/users/$owner/packages/container/ar-api/versions" --paginate \
@@ -158,5 +162,9 @@ jobs:
             echo ""
             echo "Versions kept: $(echo "$digests" | wc -w). Storage used: **$((unique / 1048576)) MB** (shared layers counted once);"
             echo "upper bound if every version is counted in full: $((total / 1048576)) MB."
+            if [ -s missing.txt ]; then
+              echo ""
+              echo "Parts of older image indexes already deleted (counted as 0): $(sort -u missing.txt | wc -l)"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
