@@ -203,16 +203,30 @@ def detect_forward(body: str) -> ForwardInfo:
     return ForwardInfo(True, name, addr, note, forwarded_body)
 
 
+# what quoted history really looks like - the parser's cut is accepted only if the removed part has one
+QUOTE_MARKERS = re.compile(
+    r"^\s*>|^\s*(?:on|am|le|el|em|il|op)\b.{4,200}?(?:wrote|schrieb|a\s+écrit|a\s+ecrit|escribió|escribio|"
+    r"escreveu|ha\s+scritto|schreef)\s*:|^\s*(?:from|von|de|da|van|差出人|送信者)\s*:|"
+    r"^-{2,}\s*(?:original\s+message|ursprüngliche\s+nachricht|message\s+d'origine|mensaje\s+original|"
+    r"mensagem\s+original|forwarded\s+message)|^_{10,}", re.I | re.M)
+
+
 def strip_replies(text: str) -> str:
-    """Latest reply only, without quoted history ('On ... wrote:', '> ...', Outlook headers)."""
+    """Latest reply only, without quoted history ('On ... wrote:', '> ...', Outlook headers).
+    The parser is heuristic: a line such as "- 28 Oct 2026: GBP 4,176.00" (an instalment list) can look
+    like a reply header to it, so its cut is only accepted when the removed text really is quoted history."""
     if not text or not text.strip():
         return ""
     try:
         parsed = EmailReplyParser(languages=REPLY_LANGUAGES).read(text)
         latest = parsed.replies[0].body if parsed.replies else text
-    except Exception:  # the parser is heuristic; never lose the body because of it
+    except Exception:  # never lose the body because of the parser
         latest = text
-    return (latest or text).strip()
+    latest = (latest or text).strip()
+    removed = text.strip()[len(latest):] if text.strip().startswith(latest) else text.replace(latest, "", 1)
+    if removed.strip() and not QUOTE_MARKERS.search(removed):
+        return text.strip()
+    return latest
 
 
 def clean_body(body: str, fwd: ForwardInfo | None = None) -> str:

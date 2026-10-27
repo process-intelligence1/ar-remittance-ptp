@@ -124,6 +124,70 @@ class EmailClassification(Base):
 
 
 # --------------------------------------------------------------------------- invoice rows
+class Extraction(Base):
+    """What was read from an e-mail (M04): one header per run; older runs kept (is_current = false)."""
+    __tablename__ = "extraction"
+    __table_args__ = (Index("ix_extraction_current", "email_id", "is_current"), AR)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    email_id: Mapped[int] = mapped_column(ForeignKey(f"{SCHEMA}.email_message.id", ondelete="CASCADE"))
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+    status: Mapped[str] = mapped_column(String(20))  # OK | PARTIAL | NO_LINES | SKIPPED
+    method: Mapped[str] = mapped_column(String(20), default="rules")  # rules | rules+llm (optional fallback)
+    payer_name: Mapped[str | None] = mapped_column(String(200))
+    sender_domain: Mapped[str | None] = mapped_column(String(120))
+    customer_number: Mapped[str | None] = mapped_column(String(20))   # as quoted by the payer
+    payer_account: Mapped[str | None] = mapped_column(String(40))     # IBAN (valid check digits) or account no.
+    our_reference: Mapped[str | None] = mapped_column(String(60))
+    your_reference: Mapped[str | None] = mapped_column(String(60))
+    payment_reference: Mapped[str | None] = mapped_column(String(60))
+    advice_number: Mapped[str | None] = mapped_column(String(60))
+    remittance_refs: Mapped[list | None] = mapped_column(JSONB)        # REM-...
+    payment_date: Mapped[date | None] = mapped_column(Date)
+    promise_date: Mapped[date | None] = mapped_column(Date)
+    promise_text: Mapped[str | None] = mapped_column(String(200))      # the wording, e.g. "end of month"
+    total_amount: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))
+    payment_currency: Mapped[str | None] = mapped_column(String(3))
+    fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(18, 8))    # as stated; nothing is converted
+    document_currency: Mapped[str | None] = mapped_column(String(3))
+    lines_count: Mapped[int] = mapped_column(Integer, default=0)
+    lines_sum: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))
+    total_mismatch: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))  # total - sum of remittance lines
+    warnings: Mapped[list | None] = mapped_column(JSONB)
+    evidence: Mapped[dict | None] = mapped_column(JSONB)              # where each header value was found
+    created_at: Mapped[datetime] = _created()
+
+
+class ExtractionLine(Base):
+    """One invoice (or instalment) read from an e-mail; M05 turns these into ar.work_item rows."""
+    __tablename__ = "extraction_line"
+    __table_args__ = (Index("ix_extraction_line_ref", "invoice_ref_norm"), AR)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    extraction_id: Mapped[int] = mapped_column(ForeignKey(f"{SCHEMA}.extraction.id", ondelete="CASCADE"))
+    line_no: Mapped[int] = mapped_column(Integer)
+    line_type: Mapped[str] = mapped_column(String(12))   # REMITTANCE | PTP
+    invoice_ref_raw: Mapped[str] = mapped_column(String(60))
+    invoice_ref_norm: Mapped[str | None] = mapped_column(String(60))
+    amount: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))           # net paid / promised (credit < 0)
+    gross_amount: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))
+    deduction_amount: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))
+    deduction_reason: Mapped[str | None] = mapped_column(String(120))        # TDS, bank charges, ...
+    line_currency: Mapped[str | None] = mapped_column(String(3))             # the invoice's, when stated
+    payment_currency: Mapped[str | None] = mapped_column(String(3))
+    fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(18, 8))
+    credit_note_flag: Mapped[bool] = mapped_column(Boolean, default=False)
+    invoice_date: Mapped[date | None] = mapped_column(Date)
+    promise_date: Mapped[date | None] = mapped_column(Date)
+    promise_text: Mapped[str | None] = mapped_column(String(200))
+    instalment_no: Mapped[int | None] = mapped_column(Integer)
+    method: Mapped[str] = mapped_column(String(20))      # table | text_line | prose | mention | instalment
+    source_kind: Mapped[str | None] = mapped_column(String(20))  # body | pdf_text | ocr | xlsx | docx | csv | other
+    source_name: Mapped[str | None] = mapped_column(String(300))
+    attachment_id: Mapped[int | None] = mapped_column(ForeignKey(f"{SCHEMA}.email_attachment.id", ondelete="SET NULL"))
+    evidence: Mapped[dict | None] = mapped_column(JSONB)
+
+
 class WorkItem(Base):
     """ONE ROW PER INVOICE referenced in an e-mail - the rows of the Action Queue.
 

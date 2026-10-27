@@ -16,15 +16,17 @@ from app.classification.inputs import ClassifierInput
 _GERMAN = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue"})
 
 
-def fold(text: str) -> str:
-    """Lower case, umlauts written out, Latin accents removed, full-width -> normal, one space."""
+def fold(text: str, keep_spaces: bool = False) -> str:
+    """Lower case, umlauts written out, Latin accents removed, full-width -> normal, one space
+    (keep_spaces: runs of spaces stay, for column-aligned "Label      value" lines)."""
     text = unicodedata.normalize("NFKC", text or "").translate(_GERMAN).lower()
     out = []
     for ch in text:
         if ord(ch) < 0x0250:  # Latin only - Japanese kana must keep their marks
             ch = "".join(c for c in unicodedata.normalize("NFKD", ch) if not unicodedata.combining(c))
         out.append(ch)
-    return re.sub(r"[ \t\r\f\v]+", " ", "".join(out))
+    joined = "".join(out)
+    return joined if keep_spaces else re.sub(r"[ \t\r\f\v]+", " ", joined)
 
 
 def _compile(entries):

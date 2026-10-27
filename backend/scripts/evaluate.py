@@ -2,6 +2,7 @@
 
 Run from the backend folder:
     python -m scripts.evaluate --stage classification   -> docs/reports/M03_classification_report.md
+    python -m scripts.evaluate --stage extraction       -> docs/reports/M04_extraction_report.md
 
 Classification is measured four ways, so the numbers are honest:
 - rules only, on all samples (the keyword lists were written while looking at the samples, so
@@ -198,8 +199,192 @@ def classification() -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- extraction (M04)
+EXTRACTION_REPORT = PROJECT_ROOT / "docs" / "reports" / "M04_extraction_report.md"
+UNREFERENCED = ("R12", "R13", "R28")  # payments without invoice numbers by design (M05 finds them by amount)
+
+
+def extraction() -> int:
+    """Lines judged against BSID (no hand-made answers exist): number in BSID (XBLNR, or exactly
+    BELNR / VBELN) and amount within 2 % of the BSID amount (or the gross, when a deduction was taken).
+    Dev = the 2/3 the rules were written on; HELD-OUT = every 3rd sample per scenario, never studied."""
+    from decimal import Decimal
+
+    from sqlalchemy import text as sql
+
+    from app.db import SessionLocal
+    from app.extraction.documents import SOURCE_LABELS
+    from app.extraction.extractor import extract
+    from app.extraction.refs import normalise_ref
+    from app.extraction.samples import load_all, split
+    from app.rules_defaults import EXTRACTION
+
+    started = time.perf_counter()
+    tol = Decimal(str(EXTRACTION["amount_tolerance_pct"])) / 100
+    with SessionLocal() as db:
+        bsid: dict[str, list[tuple[str, Decimal]]] = defaultdict(list)
+        for x, b, v, w, amt, sh in db.execute(sql("select xblnr, belnr, vbeln, waers, wrbtr, shkzg from sap.bsid")):
+            a = -amt if sh == "H" else amt
+            for f in {x, b, v} - {None}:
+                bsid[normalise_ref(f)].append((w, a))
+    print("Reading the sample folders (cached) and extracting ...", flush=True)
+    items = load_all()
+    parts = split([c for c, _ in items])
+
+    rows, emails = [], []
+    for code, inp in items:
+        if code.startswith("O"):
+            continue
+        r = extract(inp)
+        scn = code.split("-")[0]
+        emails.append({"code": code, "scn": scn, "part": parts[code], "r": r, "inp": inp})
+        for ln in r.lines:
+            hits = bsid.get(ln.ref_norm, [])
+
+            def near(v):
+                return v is not None and any(abs(v - a) <= abs(a) * tol for _, a in hits)
+
+            if not hits:
+                cat = "NOT_IN_BSID"
+            elif ln.amount is None:
+                cat = "NO_AMOUNT"
+            elif near(ln.amount):
+                cat = "EXACT"
+            elif near(ln.gross):
+                cat = "GROSS"           # deduction taken (TDS, charges)
+            elif any(0 < ln.amount < a for _, a in hits) or ln.instalment_no:
+                cat = "PARTIAL"         # short payment / instalment / partly paid
+            else:
+                cat = "OTHER_AMOUNT"    # overpayment, other currency, misread
+            rows.append({"code": code, "scn": scn, "part": parts[code], "ln": ln, "cat": cat,
+                         "kind": ln.source.kind, "bsid": hits[:2]})
+
+    def pct(n, d):
+        return f"{100 * n / d:.1f} %" if d else "-"
+
+    def referenced_rem(x):
+        return x["ln"].line_type == "REMITTANCE" and x["scn"] not in UNREFERENCED
+
+    L = ["# M04 — extraction report", "",
+         f"{len(emails)} in-scope sample e-mails ({sum(e['part'] == 'heldout' for e in emails)} held out), "
+         f"{len(rows)} invoice lines extracted. Judged against BSID (4,840 open items): there are no hand-made "
+         "answers, so a line counts as a **hit** when its invoice number exists in BSID (XBLNR, or exactly BELNR / "
+         "VBELN) and its amount is within 2 % of the BSID amount (or its gross amount is, when a deduction was "
+         f"taken). Run time {time.perf_counter() - started:.0f} s.", "",
+         "**Dev** = the two thirds of the samples the rules were written on. **Held-out** = every 3rd sample of "
+         "each scenario, never looked at while writing the rules - the honest number.", "",
+         "## Headline (referenced remittance lines; R12, R13, R28 have no invoice numbers by design)", "",
+         "| Set | Lines | Number in BSID | Strict hit (number + amount within 2 %) | Hit or deliberate part-payment |",
+         "|---|---|---|---|---|"]
+    for part in ("dev", "heldout", None):
+        sel = [x for x in rows if referenced_rem(x) and (part is None or x["part"] == part)]
+        inb = sum(x["cat"] != "NOT_IN_BSID" for x in sel)
+        hit = sum(x["cat"] in ("EXACT", "GROSS") for x in sel)
+        hp = sum(x["cat"] in ("EXACT", "GROSS", "PARTIAL") for x in sel)
+        name = {"dev": "Dev", "heldout": "**Held-out**", None: "All"}[part]
+        L.append(f"| {name} | {len(sel)} | {pct(inb, len(sel))} | **{pct(hit, len(sel))}** | {pct(hp, len(sel))} |")
+
+    # scenarios where not one line matches BSID: built as exceptions (amount missing, unknown numbers, ...)
+    by_scn = defaultdict(list)
+    for x in rows:
+        if referenced_rem(x):
+            by_scn[x["scn"]].append(x)
+    no_match = sorted(s for s, xs in by_scn.items() if not any(x["cat"] in ("EXACT", "GROSS") for x in xs))
+    for part in ("dev", "heldout"):
+        sel = [x for x in rows if referenced_rem(x) and x["part"] == part and x["scn"] not in no_match]
+        L.append(f"| {'Dev' if part == 'dev' else '**Held-out**'} without {', '.join(no_match)} | {len(sel)} | "
+                 f"{pct(sum(x['cat'] != 'NOT_IN_BSID' for x in sel), len(sel))} | "
+                 f"**{pct(sum(x['cat'] in ('EXACT', 'GROSS') for x in sel), len(sel))}** | "
+                 f"{pct(sum(x['cat'] in ('EXACT', 'GROSS', 'PARTIAL') for x in sel), len(sel))} |")
+    L += ["", f"The last rows leave out the scenarios in which **not a single line** matches BSID ({', '.join(no_match)}): "
+          "they are built as exceptions (amount column empty, invoice numbers that do not exist, payment in another "
+          "currency, ...), which M05 must send to review - not reading errors. The strict number above is the one "
+          "BUILD_PLAN asks for; most of its misses are deliberate part-payments (see PARTIAL per scenario)."]
+
+    def consistent(e):
+        return e["r"].total_mismatch is not None and abs(e["r"].total_mismatch) <= Decimal("0.01")
+
+    rem_emails = [e for e in emails if e["inp"].contains_remittance and e["scn"] not in UNREFERENCED]
+    parts_txt = []
+    for n, key in (("dev", "dev"), ("held-out", "heldout")):
+        sel = [e for e in rem_emails if e["part"] == key]
+        parts_txt.append(f"{n} {pct(sum(consistent(e) for e in sel), len(sel))} ({sum(consistent(e) for e in sel)}/{len(sel)})")
+    L += ["", "**Read correctly by the document's own numbers** (remittance e-mails whose lines add up exactly to the "
+          "stated total): " + ", ".join(parts_txt) + ". The others state no total, or a line was missed / misread "
+          "(both listed below).", "",
+          "Line categories: EXACT = amount within 2 % of BSID; GROSS = gross within 2 % (deduction taken); "
+          "PARTIAL = less than the open amount (short payment / instalment - deliberate in many samples); "
+          "OTHER_AMOUNT = more than BSID, another currency, or misread; NO_AMOUNT = number only (e.g. a promise "
+          "without a per-invoice amount); NOT_IN_BSID = no such invoice number (unknown invoice or OCR misread - "
+          "M05 decides NEAR / NONE)."]
+
+    cats = ["EXACT", "GROSS", "PARTIAL", "OTHER_AMOUNT", "NO_AMOUNT", "NOT_IN_BSID"]
+    L += ["", "## Per scenario (all lines)", "", "| Scenario | E-mails | Lines | " + " | ".join(cats) + " | Hit | No lines |",
+          "|---|---|---|" + "---|" * (len(cats) + 2)]
+    for scn in sorted({e["scn"] for e in emails}):
+        sel = [x for x in rows if x["scn"] == scn]
+        es = [e for e in emails if e["scn"] == scn]
+        c = Counter(x["cat"] for x in sel)
+        L.append(f"| {scn} | {len(es)} | {len(sel)} | " + " | ".join(str(c[k]) for k in cats) +
+                 f" | {pct(c['EXACT'] + c['GROSS'], len(sel))} | {sum(not e['r'].lines for e in es)} |")
+
+    L += ["", "## Hit-rate per source (where the line's values came from; referenced remittance lines)", "",
+          "| Source | Lines | Number in BSID | Strict hit | Hit or part-payment |", "|---|---|---|---|---|"]
+    for kind, label in SOURCE_LABELS.items():
+        sel = [x for x in rows if referenced_rem(x) and x["kind"] == kind]
+        if sel:
+            L.append(f"| {label} | {len(sel)} | {pct(sum(x['cat'] != 'NOT_IN_BSID' for x in sel), len(sel))} | "
+                     f"{pct(sum(x['cat'] in ('EXACT', 'GROSS') for x in sel), len(sel))} | "
+                     f"{pct(sum(x['cat'] in ('EXACT', 'GROSS', 'PARTIAL') for x in sel), len(sel))} |")
+
+    ptp = [x for x in rows if x["ln"].line_type == "PTP"]
+    L += ["", "## Promises (PTP lines)", "",
+          f"{len(ptp)} PTP lines; promise date found for {sum(x['ln'].promise_date is not None for x in ptp)}; "
+          f"instalment lines {sum(x['ln'].instalment_no is not None for x in ptp)}; number in BSID "
+          f"{pct(sum(x['cat'] != 'NOT_IN_BSID' for x in ptp), len(ptp))}."]
+
+    no_lines = [e for e in emails if not e["r"].lines]
+    L += ["", f"## E-mails with no lines found ({len(no_lines)})", ""]
+    L += ["None."] if not no_lines else [
+        f"- {e['code']} ({e['part']}){' - no invoice numbers by design' if e['scn'] in UNREFERENCED else ''}"
+        for e in no_lines]
+
+    mism = [e for e in emails if e["r"].total_mismatch is not None and abs(e["r"].total_mismatch) > Decimal("0.01")]
+    no_total = [e for e in rem_emails if e["r"].lines and e["r"].header.total is None]
+    L += ["", f"## Total vs sum of lines - mismatches ({len(mism)})", ""]
+    L += ["None."] if not mism else ["| Sample | Set | Total | Sum of lines | Difference |", "|---|---|---|---|---|"] + [
+        f"| {e['code']} | {e['part']} | {e['r'].header.total} {e['r'].header.payment_currency or ''} | "
+        f"{e['r'].lines_sum} | {e['r'].total_mismatch} |" for e in mism]
+    L += ["", f"Remittance e-mails with lines but no stated total (cannot be checked): {len(no_total)} - "
+          + ", ".join(e["code"] for e in no_total[:40])]
+
+    fails = [x for x in rows if x["cat"] in ("NOT_IN_BSID", "OTHER_AMOUNT")]
+    L += ["", f"## Lines to look at ({len(fails)}: number not in BSID, or amount above BSID / other currency)", "",
+          "| Sample | Set | Number as read | Amount | Currency | Category | BSID | Source | Method |",
+          "|---|---|---|---|---|---|---|---|---|"]
+    for x in fails:
+        ln = x["ln"]
+        bs = "; ".join(f"{a} {w}" for w, a in x["bsid"]) or "-"
+        L.append(f"| {x['code']} | {x['part']} | {ln.ref_raw} | {ln.amount} | {ln.payment_currency or ''} | {x['cat']} | "
+                 f"{bs} | {SOURCE_LABELS.get(x['kind'], x['kind'])} | {ln.method} |")
+
+    EXTRACTION_REPORT.parent.mkdir(parents=True, exist_ok=True)
+    EXTRACTION_REPORT.write_text("\n".join(L) + "\n", encoding="utf-8")
+    for part in ("dev", "heldout"):
+        sel = [x for x in rows if referenced_rem(x) and x["part"] == part]
+        print(f"{part}: {len(sel)} referenced remittance lines, strict hit "
+              f"{pct(sum(x['cat'] in ('EXACT', 'GROSS') for x in sel), len(sel))}, number in BSID "
+              f"{pct(sum(x['cat'] != 'NOT_IN_BSID' for x in sel), len(sel))}, hit or part-payment "
+              f"{pct(sum(x['cat'] in ('EXACT', 'GROSS', 'PARTIAL') for x in sel), len(sel))}")
+    print(f"Report: {EXTRACTION_REPORT}")
+    return 0
+
+
+STAGES = {"classification": classification, "extraction": extraction}
+
 if __name__ == "__main__":
-    if "--stage" not in sys.argv or sys.argv[sys.argv.index("--stage") + 1] != "classification":
-        print("Usage: python -m scripts.evaluate --stage classification")
+    stage = sys.argv[sys.argv.index("--stage") + 1] if "--stage" in sys.argv else None
+    if stage not in STAGES:
+        print("Usage: python -m scripts.evaluate --stage classification|extraction")
         sys.exit(2)
-    sys.exit(classification())
+    sys.exit(STAGES[stage]())

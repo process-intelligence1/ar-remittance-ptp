@@ -89,7 +89,7 @@ one plain sentence before running it, and summarise results in plain language.
 - M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
-  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (366 pass).
+  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (475 pass).
   Whole inbox is processed (NO date cut-off) except rule "ignored_senders" = ONLY the domains
   github.com, google.com, accounts.google.com, microsoft.com, azure.com, anthropic.com, claude.ai,
   claude.com (+ subdomains); NO address patterns (noreply@ ERP senders send real remittances, e.g.
@@ -120,4 +120,12 @@ one plain sentence before running it, and summarise results in plain language.
   without pushing. Clean-up keeps the 3 newest versions + whatever Azure runs. Deploys wait for the
   owner's approval (environment "demo" reviewer). Known, not fixed: OpenCV minAreaRect returns -90..0 here,
   so M02 deskew skips some tilted scans (e.g. R19-0114 at 0.24 deg, R29-0161).
-- Next: M04 extraction, then M05-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+- M04 done (extraction) - see docs/modules/M04_extraction.md and docs/reports/M04_extraction_report.md.
+  app/extraction/: ar.extraction (header) + ar.extraction_line (per invoice / instalment, evidence JSON);
+  normalise_ref() in refs.py is THE invoice-number normalisation for M05. Own date parser (incl. Japanese
+  eras, relative promise dates vs e-mail date). Invoice currency only when stated; payment currency + FX
+  rate kept apart, nothing converted. Held-out third (every 3rd sample per scenario) reported separately:
+  strict hit 80 % (target 85 % missed - deliberate part-payments/exception scenarios R02 R04 R06 R16 R26),
+  number in BSID 95.5 %, lines = stated total 96 %. scripts.extract [--reclean]; POST /api/admin/emails/{ref}/extract.
+  Also fixed: M01 reply cleaner no longer cuts instalment lists; fold(keep_spaces=True) for aligned labels.
+- Next: M05 matching + scoring, then M06-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.

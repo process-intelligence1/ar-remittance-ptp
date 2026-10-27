@@ -1,6 +1,6 @@
 # M03 — classification report
 
-234 sample e-mails (expected answer = folder prefix), business date 2026-10-28, sender check: ADR6 (laptop database). Run time 11 s.
+234 sample e-mails (expected answer = folder prefix), business date 2026-10-28, sender check: ADR6 (laptop database). Run time 6 s.
 
 A result counts as correct only when the label, both flags (contains remittance / contains PTP) and, for out of scope, the category are all right.
 
@@ -10,7 +10,7 @@ A result counts as correct only when the label, both flags (contains remittance 
 |---|---|---|---|
 | Rules only (optimistic: keywords written while looking at these samples) | 234/234 | **100.0 %** | 100.0 % |
 | Rules + model, 5-fold cross-validated (the model never judges an e-mail it learned from) | 234/234 | **100.0 %** | 100.0 % |
-| Model alone, cross-validated (for comparison) | 221/234 | 94.4 % | 94.9 % |
+| Model alone, cross-validated (for comparison) | 222/234 | 94.9 % | 94.9 % |
 | Hand-written e-mails (not samples), batch 1, rules only | 26/26 | 100.0 % | |
 | Hand-written e-mails (not samples), batch 1, rules + model | 26/26 | 100.0 % | |
 | Hand-written e-mails (not samples), batch 2, rules only | 18/18 | 100.0 % | |
@@ -26,16 +26,15 @@ The model was asked for 3 of 234 samples (rules confidence below 70 %).
 |---|---|---|---|
 | Rules only | 184/184 | 33/33 | 17/17 |
 | Rules + model, cross-validated | 184/184 | 33/33 | 17/17 |
-| Model alone, cross-validated | 183/184 | 21/33 | 17/17 |
+| Model alone, cross-validated | 183/184 | 22/33 | 17/17 |
 
-Model alone, cross-validated - misses (13); this is why the rules decide and the model is only asked when the rules are unsure:
+Model alone, cross-validated - misses (12); this is why the rules decide and the model is only asked when the rules are unsure:
 
 - P01-0186: expected PTP, model said REMITTANCE
 - P02-0188: expected PTP, model said REMITTANCE
 - P02-0189: expected PTP, model said REMITTANCE
 - P02-0191: expected PTP, model said REMITTANCE
 - P03-0197: expected PTP, model said REMITTANCE
-- P05-0201: expected PTP, model said MIXED
 - P05R-0202: expected REMITTANCE, model said MIXED
 - P06-0207: expected MIXED, model said REMITTANCE
 - P06-0208: expected MIXED, model said REMITTANCE
@@ -90,7 +89,7 @@ P06 e-mails pay some invoices and promise the rest, so both flags must be set. P
 | P05R | 3 | 3 | 98.1 |
 | P06 | 5 | 5 | 92.8 |
 | P07 | 3 | 3 | 98.7 |
-| P08 | 3 | 3 | 94.7 |
+| P08 | 3 | 3 | 96.1 |
 | R01 | 18 | 18 | 97.0 |
 | R02 | 5 | 5 | 91.8 |
 | R03 | 14 | 14 | 97.2 |

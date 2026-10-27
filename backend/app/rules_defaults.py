@@ -45,6 +45,13 @@ CLASSIFICATION = {
     "gmail_labels": {"REMITTANCE": "AR-Remittance", "PTP": "AR-PTP", "OUT_OF_SCOPE": "AR-OutOfScope"},
 }
 
+EXTRACTION = {
+    "amount_tolerance_pct": 2,      # an extracted amount "matches" BSID within this % (evaluation / M05)
+    "total_tolerance": 0.01,        # total vs sum of the remittance lines
+    "prefer_us_dates_for_domains": [".com", ".us"],  # 03/11/2026 read month-first for US-looking senders
+    "llm_provider": "none",         # none | gemini | groq - optional fallback, interface only (M04)
+}
+
 FAST_PATH_DESCRIPTION = ("EXACT invoice match + BSID open + same currency + amount within tolerance = 92%; "
                          "EXACT + amount missing = 91% (sets confidence directly).")
 
@@ -58,6 +65,11 @@ DEFAULT_RULES: dict[str, tuple[dict, str]] = {
         CLASSIFICATION,
         "E-mail classification (M03): keyword points needed for remittance / promise / out-of-scope, "
         "bonuses for invoice numbers, known senders and future dates, when the learned model is asked.",
+    ),
+    "extraction": (
+        EXTRACTION,
+        "Extraction (M04): tolerance for 'amount matches' and 'total = sum of lines' checks, "
+        "US date order hint, optional hosted-LLM fallback (none = off).",
     ),
     "scoring_weights": (
         {"invoice_match": 0.35, "amount_alignment": 0.30, "sender_company": 0.10,
