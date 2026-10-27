@@ -65,5 +65,13 @@ one plain sentence before running it, and summarise results in plain language.
 ## Plan status
 - Day 1 done: tools installed, repo created, local database created.
 - Day 2: backend skeleton, tables (Alembic), reference data loaded, first API - see docs/DAY2_GUIDE.md.
-- Next: Day 3 first Azure deployment; then Gmail reader, document reading/OCR, classification,
-  extraction, matching, screens. MVP target 9 Nov 2026.
+- Day 3 done (Milestone 1): API live in Azure Container Apps - see docs/DAY3_GUIDE.md.
+  URL https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io . rg-ar-demo (centralindia):
+  ar-api, cae-ar-demo, psql-ar-demo-snjjnahqgx3b4 (B1ms, data loaded), kv-ardemo-snjjnahqgx3b4,
+  id-ar-api, log-ar-demo, policy "allowed resource types"; budget-ar-demo ($1) on the subscription.
+  Azure account processintelligence1@outlook.com (Free Trial, spending limit on).
+  Code deploys: push to main -> .github/workflows/deploy.yml (OIDC, environment "demo", no reviewer:
+  GitHub Free). Infra deploys: .\infra\deploy.ps1 [-WhatIf] (rotates DB password each run).
+  GHCR pull token must be a CLASSIC PAT (read:packages), stored only in Key Vault by the owner.
+- Next: Gmail reader, document reading/OCR, classification, extraction, matching, screens.
+  MVP target 9 Nov 2026.
