@@ -76,3 +76,5 @@ Remove-Variable k
 - HTML attachments over 2 MB, password-protected PDFs and unknown types are `SKIPPED` with a note.
 - PDFs: at most 50 pages are read (noted when more exist).
 - `azure_di` engine untested (no resource).
+- PyMuPDF is pinned to **1.28.2** on purpose: 2.0 pulls in an unused AI layout add-on
+  (onnxruntime, networkx, models, ~80 MB). Results on all 234 samples are identical with 1.28.2.
