@@ -123,20 +123,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           owner="${GITHUB_REPOSITORY_OWNER}"
+          # compressed sizes as stored in the registry. A version is either an image manifest
+          # (config + layers) or an image index (older builds with attestations) -> add its children.
+          image_size() {
+            local raw; raw=$(docker buildx imagetools inspect --raw "$IMAGE@$1")
+            if echo "$raw" | jq -e '.manifests' > /dev/null; then
+              local s=0
+              for c in $(echo "$raw" | jq -r '.manifests[].digest'); do s=$((s + $(image_size "$c"))); done
+              echo "$s"
+            else
+              echo "$raw" | jq -r '.layers[]? | "\(.digest) \(.size)"' >> layers.txt
+              echo "$raw" | jq '[.config.size // 0] + [.layers[]?.size] | add'
+            fi
+          }
           digests=$(gh api "/users/$owner/packages/container/ar-api/versions" --paginate --jq '.[].name')
           : > layers.txt; total=0; summary=""
           for d in $digests; do
-            # compressed sizes as stored in the registry: config + layers of the image manifest
-            manifest=$(docker buildx imagetools inspect --raw "$IMAGE@$d")
-            size=$(echo "$manifest" | jq '[.config.size] + [.layers[].size] | add')
-            echo "$manifest" | jq -r '.layers[] | "\(.digest) \(.size)"' >> layers.txt
+            size=$(image_size "$d")
             tags=$(gh api "/users/$owner/packages/container/ar-api/versions" --paginate \
                    --jq ".[] | select(.name==\"$d\") | .metadata.container.tags | join(\",\")")
             total=$((total + size))
             summary="$summary| ${tags:-untagged} | ${d:7:12} | $((size / 1048576)) MB |\n"
           done
           unique=$(sort -u layers.txt | awk '{s+=$2} END {print s+0}')
-          current=$(docker buildx imagetools inspect --raw "$IMAGE:${{ github.sha }}" | jq '[.config.size] + [.layers[].size] | add')
+          current=$(image_size "$(docker buildx imagetools inspect "$IMAGE:${{ github.sha }}" --format '{{json .Manifest}}' | jq -r .digest)")
           {
             echo "### GHCR storage (free private storage: 500 MB)"
             echo ""
