@@ -16,7 +16,13 @@
   only an audit entry `EMAIL_IGNORED` (date, sender, reason "ignored system sender") and the
   Gmail label `AR-Ignored`. Checked on the real From and, for forwards, the original sender.
 - **Sample sender**: puts a sample from `data/samples/emails/<CODE>/` into the inbox with the
-  **customer as sender** (Gmail "import" — nothing is e-mailed to anyone).
+  **customer as sender** (Gmail "import" — nothing is e-mailed to anyone). It is dated **now**,
+  so it appears at the top of the inbox; the sample's own date is kept in `X-Original-Date`
+  (`--original-date` keeps the old date, for building history in M11).
+- **Only Azure polls** (`POLLER_ENABLED=true` there, false on the laptop): both read the same
+  inbox, and whoever polls first takes the e-mail. On the laptop `--force` overrides this.
+- **Admin endpoints** (`/api/admin/*`) need the header `X-Admin-Key`; the key is Key Vault
+  secret `admin-api-key`. Without a configured key they are switched off (403).
 
 ## How it works
 ```
@@ -45,17 +51,23 @@
 ## How to try it
 Laptop (VS Code terminal, in `D:\Finance\AR_Remittance\backend`, venv active):
 ```powershell
-python -m scripts.send_sample R01-0007          # one or more codes
-python -m scripts.poll_gmail                    # read new inbox e-mails once
-python -m scripts.poll_gmail                    # again: "stored 0" (no duplicates)
+python -m scripts.send_sample R01-0007          # one or more codes (dated now)
+python -m scripts.poll_gmail                    # refuses: the poller runs in Azure only
+python -m scripts.poll_gmail --force            # poll from the laptop anyway (takes mail from Azure)
 python -m scripts.purge_ignored                 # LIST stored e-mails from ignored senders
 python -m scripts.purge_ignored --yes           # ... and delete them (rows + files, relabel AR-Ignored)
-python -m pytest                                # 275 tests
+python -m pytest                                # 291 tests
 ```
-Azure:
-- `POST https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io/api/admin/gmail/poll` — poll now
-- `GET  …/api/emails` (or `…/api/emails?sample_code=R01-0007`) — what was stored
-- Or open `…/docs` and use "Try it out".
+Azure (in your own terminal — the key goes into a variable, it is never shown):
+```powershell
+$u = "https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io"
+$k = az keyvault secret show --vault-name kv-ardemo-snjjnahqgx3b4 --name admin-api-key --query value -o tsv
+Invoke-RestMethod -Method Post "$u/api/admin/gmail/poll" -Headers @{ "X-Admin-Key" = $k }   # poll now
+Invoke-RestMethod "$u/api/emails?sample_code=R01-0007"                                     # what was stored (no key needed)
+Remove-Variable k
+```
+Or open `…/docs`, click **Authorize**, paste the key (copy it from the Azure portal → Key Vault
+→ Secrets → admin-api-key), then use "Try it out".
 
 Results on 27 Oct 2026: laptop stored 39 inbox e-mails (incl. R01-0007 with its PNG and
 R30-0165 whose ZIP contains a PDF); second poll stored 0. Azure stored R01-0007 as
@@ -81,13 +93,9 @@ rules come later); the default is in `backend/app/rules_defaults.py`.
   Publishing to "In production" needs privacy/terms pages — planned in M08.
 - Non-AR mail from senders **not** on the ignore list (e.g. personal Gmail addresses) is
   still stored; classification (M03) will mark it OUT_OF_SCOPE.
-- The laptop and Azure read the **same inbox**: whichever polls first takes a message (the
-  label hides it from the other). Use one of them at a time.
-- Polling is manual (script or API) until the scheduled worker in M06.
-- `/api/admin/gmail/poll` has no login yet (M08); `/api/emails` shows metadata only — no
-  bodies or files — for that reason.
-- Sample `Date:` lines have no time zone: treated as UTC. Gmail sorts imported samples by
-  that date, so they appear among older mail, not at the top.
+- Polling is manual (admin API, or `--force` on the laptop) until the scheduled worker in M06.
+- `/api/emails` has no login yet (M08) and therefore shows metadata only — no bodies or files.
+- Sample `Date:` lines have no time zone: treated as UTC (kept in `X-Original-Date`).
 - Reply stripping has no Portuguese-specific rules (falls back to the general rules).
 - R01-0007's attachment is a PNG (the plan said "PDF").
 - E-mail numbers can skip (tests use numbers from the same sequence) — harmless.

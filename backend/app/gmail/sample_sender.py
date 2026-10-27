@@ -60,14 +60,22 @@ def _sample_date(value: str | None) -> datetime:
     return datetime.now(timezone.utc)
 
 
-def build_message(sample: Sample, to_address: str | None = None) -> EmailMessage:
+def build_message(sample: Sample, to_address: str | None = None, original_date: bool = False,
+                  now: datetime | None = None) -> EmailMessage:
+    """Live sends (default): Date = now, so the e-mail arrives at the top of the inbox; the sample's
+    own date is kept in X-Original-Date. original_date=True keeps the sample date (history, M11)."""
     msg = EmailMessage()
     from_value = sample.headers.get("from", "")
     _, from_addr = split_address(from_value)
+    sample_date = _sample_date(sample.headers.get("date"))
     msg["From"] = from_value
     msg["To"] = to_address or get_settings().gmail_address
     msg["Subject"] = sample.headers.get("subject", f"Sample {sample.code}")
-    msg["Date"] = format_datetime(_sample_date(sample.headers.get("date")))
+    if original_date:
+        msg["Date"] = format_datetime(sample_date)
+    else:
+        msg["Date"] = format_datetime(now or datetime.now(timezone.utc))
+        msg["X-Original-Date"] = format_datetime(sample_date)
     msg["Message-ID"] = make_msgid(idstring=sample.code, domain=domain_of(from_addr) or "sample.local")
     msg["X-AR-Sample"] = sample.code
     msg.set_content(sample.body)
@@ -93,9 +101,9 @@ def import_to_inbox(service, msg: EmailMessage) -> dict:
     ).execute()
 
 
-def send_sample(service, code: str) -> dict:
+def send_sample(service, code: str, original_date: bool = False) -> dict:
     sample = load_sample(code)
-    result = import_to_inbox(service, build_message(sample))
+    result = import_to_inbox(service, build_message(sample, original_date=original_date))
     return {"code": code, "gmail_id": result.get("id"), "from": sample.headers.get("from"),
             "subject": sample.headers.get("subject"), "attachments": [p.name for p in sample.attachments]}
 

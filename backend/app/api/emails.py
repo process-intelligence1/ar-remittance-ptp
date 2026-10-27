@@ -7,12 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.security import require_admin_key
 from app.db import get_db
 from app.gmail.client import GmailNotConfigured
-from app.gmail.poller import PollAlreadyRunning, poll
+from app.gmail.poller import PollAlreadyRunning, PollerDisabled, poll
 from app.models.ar import EmailAttachment, EmailMessage
 
 router = APIRouter(prefix="/api", tags=["E-mails"])
+admin = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(require_admin_key)])
 
 
 def _email_summary(e: EmailMessage, atts: list[EmailAttachment]) -> dict:
@@ -46,13 +48,13 @@ def list_emails(limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=
     return {"total": total, "items": [_email_summary(e, atts.get(e.id, [])) for e in emails]}
 
 
-@router.post("/admin/gmail/poll", summary="Read new inbox e-mails now (one poll)")
+@admin.post("/gmail/poll", summary="Read new inbox e-mails now (one poll) - needs X-Admin-Key")
 def poll_now(max_messages: int = Query(50, ge=1, le=200), db: Session = Depends(get_db)):
     try:
         r = poll(db, max_messages=max_messages)
     except GmailNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
-    except PollAlreadyRunning as exc:
+    except (PollAlreadyRunning, PollerDisabled) as exc:
         raise HTTPException(409, str(exc)) from exc
     return {"fetched": r.fetched, "stored": r.stored, "already_stored": r.already_stored,
             "skipped_outbound": r.skipped_outbound, "ignored": r.ignored, "failed": r.failed,

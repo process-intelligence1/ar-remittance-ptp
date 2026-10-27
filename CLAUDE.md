@@ -86,4 +86,6 @@ one plain sentence before running it, and summarise results in plain language.
   Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (275 pass).
   Whole inbox is processed (NO date cut-off) except system senders in rule "ignored_senders"
   (not stored; audit EMAIL_IGNORED + Gmail label AR-Ignored). scripts.purge_ignored removes old ones.
+  Only Azure polls (POLLER_ENABLED=true there; laptop needs --force). /api/admin/* needs header
+  X-Admin-Key (Key Vault "admin-api-key"; empty = admin off). Sample sends dated now, X-Original-Date kept.
 - Next: M02 document reading/OCR, then M03-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.

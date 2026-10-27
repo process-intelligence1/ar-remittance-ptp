@@ -162,9 +162,18 @@ class PollAlreadyRunning(RuntimeError):
     pass
 
 
-def poll(db: Session, service=None, storage: Storage | None = None, max_messages: int | None = None) -> PollResult:
+class PollerDisabled(RuntimeError):
+    pass
+
+
+def poll(db: Session, service=None, storage: Storage | None = None, max_messages: int | None = None,
+         force: bool = False) -> PollResult:
     """One poll, guarded so two polls never run at the same time. The lock is held on its own
-    connection (an advisory lock belongs to a connection, and the session swaps connections)."""
+    connection (an advisory lock belongs to a connection, and the session swaps connections).
+    Refuses to run where POLLER_ENABLED is false (the laptop) unless force=True."""
+    if not (get_settings().poller_enabled or force):
+        raise PollerDisabled("The Gmail poller is disabled here (POLLER_ENABLED=false). It runs in Azure; "
+                             "the laptop and Azure share one inbox.")
     bind = db.get_bind()
     with getattr(bind, "engine", bind).connect() as lock_conn:  # bind is an Engine, or a Connection in tests
         if not lock_conn.execute(text("SELECT pg_try_advisory_lock(:k)"), {"k": POLL_LOCK_KEY}).scalar():

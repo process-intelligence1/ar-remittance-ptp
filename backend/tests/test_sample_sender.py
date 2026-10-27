@@ -23,7 +23,8 @@ def test_message_keeps_customer_as_sender_and_tags_sample():
     assert p.from_email == "accounts.payable@shannonagri.ie"
     assert p.headers["x-ar-sample"] == "R01-0007"
     assert p.headers["to"] == "processintelligence1@gmail.com"
-    assert p.date.isoformat() == "2026-10-23T19:58:56+00:00"  # body.txt has no zone: treated as UTC
+    # live send: dated now; the sample's own date (no zone in body.txt -> UTC) kept in X-Original-Date
+    assert p.headers["x-original-date"] == "Fri, 23 Oct 2026 19:58:56 +0000"
     png = (samples_root() / "R01-0007" / "PaymentNotice_PAY441817.png").read_bytes()
     assert [(a.filename, a.mime_type) for a in p.attachments] == [("PaymentNotice_PAY441817.png", "image/png")]
     assert p.attachments[0].data == png

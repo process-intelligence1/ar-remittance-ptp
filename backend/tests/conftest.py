@@ -29,6 +29,15 @@ def db():
         connection.close()
 
 
+@pytest.fixture(autouse=True)
+def poller_on(monkeypatch):
+    """Tests poll a FAKE mailbox, so the POLLER_ENABLED guard is switched on for them.
+    Tests of the guard itself switch it off again."""
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "poller_enabled", True)
+
+
 @pytest.fixture
 def storage(tmp_path):
     return LocalStorage(tmp_path / "files")

@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     gmail_outbound_label: str = "AR-Outbound"
     gmail_ignored_label: str = "AR-Ignored"  # system senders (rule "ignored_senders"): not stored
     gmail_max_per_poll: int = 100
+    # Laptop and Azure read the SAME inbox, so only one may poll: true in Azure only (set by Bicep).
+    poller_enabled: bool = False
+
+    # --- Admin endpoints (/api/admin/*) ------------------------------------------
+    # Callers send header X-Admin-Key. Empty = admin endpoints switched off. Azure: from Key Vault.
+    admin_api_key: str = ""
 
     # --- Sample e-mails (data/samples/emails/<CODE>/) ----------------------------
     samples_root: str = str(PROJECT_ROOT / "data" / "samples" / "emails")

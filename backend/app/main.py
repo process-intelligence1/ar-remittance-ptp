@@ -31,3 +31,4 @@ app.add_middleware(
 app.include_router(system.router)
 app.include_router(reference.router)
 app.include_router(emails.router)
+app.include_router(emails.admin)

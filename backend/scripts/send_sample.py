@@ -4,6 +4,10 @@ Run from the backend folder:
     python -m scripts.send_sample R01-0007
     python -m scripts.send_sample R01-0007 R30-0165
     python -m scripts.send_sample --all-live        # the held-back live set (chosen in M11)
+    python -m scripts.send_sample R01-0007 --original-date   # keep the sample's own Date
+
+By default the e-mail is dated NOW (it appears at the top of the inbox); the sample's own date is
+kept in the header X-Original-Date.
 """
 import sys
 
@@ -26,7 +30,7 @@ def main(argv: list[str]) -> int:
     failed = 0
     for code in codes:
         try:
-            r = send_sample(service, code)
+            r = send_sample(service, code, original_date="--original-date" in argv)
             print(f"{code}: in inbox (gmail id {r['gmail_id']}) from {r['from']} - "
                   f"'{r['subject']}' - attachments: {', '.join(r['attachments']) or 'none'}")
         except Exception as exc:

@@ -291,6 +291,12 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
           keyVaultUrl: '${kv.properties.vaultUri}secrets/gmail-token'
           identity: apiIdentity.id
         }
+        {
+          // random key for /api/admin/* (header X-Admin-Key); must exist before deploying
+          name: 'admin-api-key'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/admin-api-key'
+          identity: apiIdentity.id
+        }
       ]
       registries: [
         {
@@ -353,6 +359,15 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
             {
               name: 'AZURE_CLIENT_ID'
               value: apiIdentity.properties.clientId
+            }
+            {
+              // the laptop and Azure share one inbox: only Azure polls
+              name: 'POLLER_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'ADMIN_API_KEY'
+              secretRef: 'admin-api-key'
             }
           ]
         }
