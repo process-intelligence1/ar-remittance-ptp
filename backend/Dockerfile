@@ -30,5 +30,6 @@ COPY --chown=appuser:appuser scripts ./scripts
 
 USER appuser
 EXPOSE 8000
-# --proxy-headers: Azure's ingress terminates HTTPS and forwards the request
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# 1) bring the database to the latest Alembic version (safe: the app runs at most 1 replica)
+# 2) start the API; --proxy-headers: Azure's ingress terminates HTTPS and forwards the request
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*'"]

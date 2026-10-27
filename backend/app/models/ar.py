@@ -29,6 +29,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -56,7 +57,9 @@ class EmailMessage(Base):
     rfc_message_id: Mapped[str | None] = mapped_column(String(300))
     thread_id: Mapped[str | None] = mapped_column(String(64))
     sample_code: Mapped[str | None] = mapped_column(String(20))  # e.g. R01-0007
-    sender_email: Mapped[str | None] = mapped_column(String(200))
+    from_email: Mapped[str | None] = mapped_column(String(200))  # real From: header (the forwarder, if forwarded)
+    is_forwarded: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    sender_email: Mapped[str | None] = mapped_column(String(200))  # original sender (taken from the forward block)
     sender_name: Mapped[str | None] = mapped_column(String(200))
     sender_domain: Mapped[str | None] = mapped_column(String(120))
     subject: Mapped[str | None] = mapped_column(Text)
@@ -85,6 +88,8 @@ class EmailAttachment(Base):
     size_bytes: Mapped[int | None] = mapped_column(BigInteger)
     sha256: Mapped[str | None] = mapped_column(String(64))
     storage_uri: Mapped[str | None] = mapped_column(String(500))
+    is_inline: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))  # e.g. logo in the body
+    depth: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))  # 0 = attached, 1+ = inside a ZIP
     page_count: Mapped[int | None] = mapped_column(Integer)
     parse_method: Mapped[str | None] = mapped_column(String(20))  # text | ocr | native_table
     text_content: Mapped[str | None] = mapped_column(Text)

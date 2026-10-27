@@ -33,10 +33,18 @@ class Settings(BaseSettings):
     # not the real calendar, so a demo looks the same on any day.
     business_date: date = date(2026, 10, 28)
 
-    # --- Gmail (used from Day 3) ----------------------------------------------
+    # --- Gmail ------------------------------------------------------------------
     gmail_address: str = "processintelligence1@gmail.com"
-    gmail_client_secret_file: str = ""
-    gmail_token_file: str = ""
+    gmail_client_secret_file: str = ""  # laptop only: OAuth Desktop client (used by scripts.gmail_auth)
+    gmail_token_file: str = ""          # laptop: token written by scripts.gmail_auth
+    gmail_token_json: str = ""          # Azure: the same token content, injected from Key Vault
+    gmail_ingest_since: str = ""        # optional cut-off date YYYY-MM-DD; empty = whole inbox
+    gmail_processed_label: str = "AR-Processed"
+    gmail_outbound_label: str = "AR-Outbound"
+    gmail_max_per_poll: int = 100
+
+    # --- Sample e-mails (data/samples/emails/<CODE>/) ----------------------------
+    samples_root: str = str(PROJECT_ROOT / "data" / "samples" / "emails")
 
     # --- Outbound e-mail safety -------------------------------------------------
     # "redirect" = every outgoing e-mail goes to OUTBOUND_REDIRECT_TO only.
@@ -46,6 +54,9 @@ class Settings(BaseSettings):
     # --- File storage ----------------------------------------------------------
     storage_backend: str = "local"  # local | azure_blob
     storage_local_root: str = str(PROJECT_ROOT / "data" / "runtime")
+    azure_storage_account_url: str = ""  # e.g. https://<account>.blob.core.windows.net
+    azure_storage_container: str = "ar-files"
+    azure_client_id: str = ""  # client id of the managed identity used for Blob access (Azure only)
 
     # --- OCR -------------------------------------------------------------------
     ocr_engine: str = "tesseract"  # tesseract | azure_di

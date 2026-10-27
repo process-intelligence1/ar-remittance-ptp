@@ -47,6 +47,7 @@ var tags = {
 var suffix = uniqueString(resourceGroup().id)
 var kvSecretsUserRole = '4633458b-17de-408a-b874-0445c86b69e6'
 var kvSecretsOfficerRole = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+var blobDataContributorRole = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 
 // ---------------------------------------------------------------------------
 // Logs: Log Analytics with a hard daily cap (0.1 GB/day, far below the 5 GB/month free allowance)
@@ -195,6 +196,51 @@ resource apiIdentityKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Blob storage for raw e-mails and attachments (M01). Standard_LRS, Hot, no public access,
+// account keys disabled: only managed identities with a data role can read/write.
+// ---------------------------------------------------------------------------
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: 'stardemo${suffix}'
+  location: location
+  tags: tags
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  properties: {
+    accessTier: 'Hot'
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+}
+
+resource filesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'ar-files'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource apiIdentityBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: storage
+  name: guid(storage.id, apiIdentity.id, blobDataContributorRole)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRole)
+    principalId: apiIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource ownerKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(adminPrincipalId)) {
   scope: kv
   name: guid(kv.id, adminPrincipalId, kvSecretsOfficerRole)
@@ -237,6 +283,12 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
         {
           name: 'ghcr-pull-token'
           keyVaultUrl: '${kv.properties.vaultUri}secrets/ghcr-pull-token'
+          identity: apiIdentity.id
+        }
+        {
+          // uploaded by the owner (M01); the app cannot start until it exists
+          name: 'gmail-token'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/gmail-token'
           identity: apiIdentity.id
         }
       ]
@@ -282,6 +334,26 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
               name: 'OUTBOUND_REDIRECT_TO'
               value: 'processintelligence1@gmail.com'
             }
+            {
+              name: 'GMAIL_TOKEN_JSON'
+              secretRef: 'gmail-token'
+            }
+            {
+              name: 'STORAGE_BACKEND'
+              value: 'azure_blob'
+            }
+            {
+              name: 'AZURE_STORAGE_ACCOUNT_URL'
+              value: storage.properties.primaryEndpoints.blob
+            }
+            {
+              name: 'AZURE_STORAGE_CONTAINER'
+              value: filesContainer.name
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: apiIdentity.properties.clientId
+            }
           ]
         }
       ]
@@ -303,6 +375,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
   }
   dependsOn: [
     apiIdentityKv
+    apiIdentityBlob
     dbUrlSecret
   ]
 }
@@ -319,6 +392,7 @@ resource appSystemKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (
 }
 
 output keyVaultName string = kv.name
+output storageAccountName string = storage.name
 output postgresServerName string = pg.name
 output postgresFqdn string = pg.properties.fullyQualifiedDomainName
 output apiUrl string = deployApp ? 'https://${app!.properties.configuration.ingress.fqdn}' : ''

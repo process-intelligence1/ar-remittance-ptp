@@ -9,3 +9,13 @@ alembic==1.14.0
 pydantic-settings==2.6.1
 # Excel reading (reference data loader)
 openpyxl==3.1.5
+# Gmail API (M01)
+google-api-python-client==2.201.0
+google-auth==2.62.0
+google-auth-oauthlib==1.5.0
+google-auth-httplib2==0.4.4
+# Removes quoted reply history from e-mail bodies (multilingual)
+mail-parser-reply==1.36
+# Azure Blob storage with managed identity (M01)
+azure-storage-blob==12.31.0
+azure-identity==1.27.0

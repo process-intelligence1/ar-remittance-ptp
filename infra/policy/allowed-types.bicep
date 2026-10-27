@@ -17,6 +17,9 @@ param allowedResourceTypes array = [
   'Microsoft.KeyVault/vaults'
   'Microsoft.KeyVault/vaults/secrets'
   'Microsoft.ManagedIdentity/userAssignedIdentities'
+  'Microsoft.Storage/storageAccounts'
+  'Microsoft.Storage/storageAccounts/blobServices'
+  'Microsoft.Storage/storageAccounts/blobServices/containers'
   'Microsoft.Authorization/roleAssignments'
 ]
 

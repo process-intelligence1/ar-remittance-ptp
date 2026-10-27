@@ -191,6 +191,7 @@ locally and in Azure; a forced failure is retried and visible.
 - Demo login: pick one of the four demo users → API issues a JWT (signing key in Key Vault);
   buttons shown per role. (Entra ID comes in M12.)
 - Azure: Static Web Apps **Free** tier; GitHub Actions builds and deploys it; API CORS updated.
+- Add simple public /privacy and /terms pages on the Static Web App, then give me the steps to add them in Google Auth Platform → Branding and publish the Gmail app to "In production" (ends the 7-day token expiry of Testing mode). Then re-run the Gmail sign-in and token upload.
 
 **Done when:** all five screens work on the Azure URL with live data; new sample e-mail appears
 in the Action Queue without refresh; works on a 1366-px laptop screen.
