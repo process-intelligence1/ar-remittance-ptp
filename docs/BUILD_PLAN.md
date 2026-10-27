@@ -73,8 +73,10 @@ M01 → M08 plus the simple demo login in M08. After that: M09 → M14.
   upload the token file to Key Vault.
 
 - Follow-ups (agreed after first run): no date cutoff — the whole inbox is processed; sender ignore
-  list `ignored_senders` in ar.rule_config (github.com, google.com, accounts.google.com,
-  microsoft.com, azure.com, anthropic.com, claude.ai, claude.com, no-reply@*, noreply@*) — ignored
+  list `ignored_senders` in ar.rule_config with ONLY these exact domains and their subdomains
+  (github.com, google.com, accounts.google.com, microsoft.com, azure.com, anthropic.com, claude.ai,
+  claude.com) — no address patterns: automated senders such as noreply@kangaroo-erp-mail.net
+  (R19-0112) can send genuine remittances, so everything else is stored and classified; ignored
   mail is never stored, only an audit entry + Gmail label `AR-Ignored`; `POLLER_ENABLED` (true in
   Azure only); admin key header on `/api/admin/*` (key in Key Vault); live sample sends use the
   current time as Date (original kept in `X-Original-Date`).

@@ -10,11 +10,17 @@
 - **Labels in Gmail**: `AR-Processed` after storing; our own outgoing e-mails
   (`X-AR-Demo: outbound`) get `AR-Outbound` and are skipped.
 - **The whole inbox is processed** (no date cut-off) — except **system senders**: rule
-  `ignored_senders` in `ar.rule_config` (domains github.com, google.com, accounts.google.com,
-  microsoft.com, azure.com, anthropic.com, claude.ai, claude.com — incl. their sub-domains —
-  and patterns `no-reply@*`, `noreply@*`). Their e-mails are **not stored** (no body, no files):
-  only an audit entry `EMAIL_IGNORED` (date, sender, reason "ignored system sender") and the
-  Gmail label `AR-Ignored`. Checked on the real From and, for forwards, the original sender.
+  `ignored_senders` in `ar.rule_config` holds **only these domains** (incl. their sub-domains):
+  github.com, google.com, accounts.google.com, microsoft.com, azure.com, anthropic.com, claude.ai,
+  claude.com. Their e-mails are **not stored** (no body, no files): only an audit entry
+  `EMAIL_IGNORED` (date, sender, reason "ignored system sender") and the Gmail label `AR-Ignored`.
+  Checked on the real From and, for forwards, the original sender.
+  **No address patterns** such as `noreply@*`: automated senders can send genuine remittances —
+  sample R19-0112 comes from `noreply@kangaroo-erp-mail.net` (customer 102469). Everything not on
+  the domain list is stored and goes on to classification.
+- **Re-fetch** (`python -m scripts.refetch_ignored`, list only; `--yes` to act): finds Gmail
+  messages labelled `AR-Ignored` that the current rule no longer ignores and removes the label,
+  so the next poll stores them.
 - **Sample sender**: puts a sample from `data/samples/emails/<CODE>/` into the inbox with the
   **customer as sender** (Gmail "import" — nothing is e-mailed to anyone). It is dated **now**,
   so it appears at the top of the inbox; the sample's own date is kept in `X-Original-Date`

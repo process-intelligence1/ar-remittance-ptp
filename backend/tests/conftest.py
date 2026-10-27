@@ -75,6 +75,10 @@ class FakeGmail:
 
     # ---- messages
     def list(self, userId, q=None, pageToken=None, maxResults=100):  # noqa: N803 - Gmail API names
+        if q and q.startswith("label:"):  # e.g. label:"AR-Ignored"
+            lid = self.labels.get(q.split(":", 1)[1].strip('"'))
+            ids = [{"id": m["id"]} for m in self.messages.values() if lid in m["labelIds"]]
+            return _Call(lambda: {"messages": ids[:maxResults]})
         excluded = {self.labels.get("AR-Processed"), self.labels.get("AR-Outbound"), self.labels.get("AR-Ignored")}
         ids = [{"id": m["id"]} for m in self.messages.values()
                if "INBOX" in m["labelIds"] and not excluded & set(m["labelIds"])]

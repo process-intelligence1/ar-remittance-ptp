@@ -84,8 +84,11 @@ one plain sentence before running it, and summarise results in plain language.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
   Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (275 pass).
-  Whole inbox is processed (NO date cut-off) except system senders in rule "ignored_senders"
-  (not stored; audit EMAIL_IGNORED + Gmail label AR-Ignored). scripts.purge_ignored removes old ones.
+  Whole inbox is processed (NO date cut-off) except rule "ignored_senders" = ONLY the domains
+  github.com, google.com, accounts.google.com, microsoft.com, azure.com, anthropic.com, claude.ai,
+  claude.com (+ subdomains); NO address patterns (noreply@ ERP senders send real remittances, e.g.
+  R19-0112). Ignored: not stored; audit EMAIL_IGNORED + Gmail label AR-Ignored. scripts.purge_ignored
+  removes old ones; scripts.refetch_ignored releases AR-Ignored mail the current rule no longer ignores.
   Only Azure polls (POLLER_ENABLED=true there; laptop needs --force). /api/admin/* needs header
   X-Admin-Key (Key Vault "admin-api-key"; empty = admin off). Sample sends dated now, X-Original-Date kept.
 - M02 done (document reading + OCR) - see docs/modules/M02_document_reading.md and

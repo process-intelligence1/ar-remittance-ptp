@@ -1,11 +1,11 @@
 """Ignored system senders (rule "ignored_senders" in ar.rule_config).
 
-E-mails from these senders are NOT stored - no body, no files - only an audit entry and
-the Gmail label AR-Ignored. A listed domain also covers its sub-domains; patterns are
-shell-style on the full address (e.g. "noreply@*").
+E-mails from these senders are NOT stored - no body, no files - only an audit entry and the
+Gmail label AR-Ignored. The rule holds ONLY domains; a listed domain also covers its sub-domains.
+There are deliberately no address patterns such as "noreply@*": automated senders can send
+genuine remittances (sample R19-0112 comes from noreply@kangaroo-erp-mail.net).
 """
 from dataclasses import dataclass
-from fnmatch import fnmatchcase
 
 from sqlalchemy.orm import Session
 
@@ -18,26 +18,20 @@ REASON = "ignored system sender"
 @dataclass(frozen=True)
 class SenderIgnoreList:
     domains: tuple[str, ...]
-    patterns: tuple[str, ...]
 
     @classmethod
     def from_value(cls, value: dict | None) -> "SenderIgnoreList":
         value = value or {}
-        return cls(tuple(d.strip().lower().lstrip("@.") for d in value.get("domains", []) if d.strip()),
-                   tuple(p.strip().lower() for p in value.get("patterns", []) if p.strip()))
+        return cls(tuple(d.strip().lower().lstrip("@.") for d in value.get("domains", []) if d.strip()))
 
     def match(self, address: str | None) -> str | None:
         """The rule that matches `address` (e.g. "domain github.com"), or None."""
         if not address or "@" not in address:
             return None
-        address = address.strip().lower()
-        domain = address.rsplit("@", 1)[1]
+        domain = address.strip().lower().rsplit("@", 1)[1]
         for d in self.domains:
             if domain == d or domain.endswith("." + d):
                 return f"domain {d}"
-        for p in self.patterns:
-            if fnmatchcase(address, p):
-                return f"pattern {p}"
         return None
 
     def match_any(self, *addresses: str | None) -> str | None:

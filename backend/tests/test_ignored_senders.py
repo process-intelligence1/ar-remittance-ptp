@@ -30,8 +30,7 @@ def _mail(frm: str, subject="Hello", body="text", attach: bytes | None = None) -
     ("account-security-noreply@accountprotection.microsoft.com", "domain microsoft.com"),
     ("no-reply-abc@mail.anthropic.com", "domain anthropic.com"),
     ("billing@claude.ai", "domain claude.ai"),
-    ("NoReply@shop.example", "pattern noreply@*"),
-    ("no-reply@bank.example", "pattern no-reply@*"),
+    ("support@azure.com", "domain azure.com"),
 ])
 def test_ignored(address, rule):
     assert RULES.match(address) == rule
@@ -39,10 +38,18 @@ def test_ignored(address, rule):
 
 @pytest.mark.parametrize("address", [
     "accounts.payable@shannonagri.ie", "ishitasinghal2021@gmail.com", "ap@notgithub.com",
-    "noreply.team@customer.example", None, "",
+    "ap@github.com.evil.example",
+    # automated senders are NOT ignored: they can send genuine remittances
+    "noreply@kangaroo-erp-mail.net", "NoReply@shop.example", "no-reply@bank.example",
+    None, "",
 ])
 def test_not_ignored(address):
     assert RULES.match(address) is None
+
+
+def test_rule_has_only_the_eight_domains():
+    assert IGNORED_SENDERS == {"domains": ["github.com", "google.com", "accounts.google.com", "microsoft.com",
+                                           "azure.com", "anthropic.com", "claude.ai", "claude.com"]}
 
 
 def test_rule_is_in_the_database(db):
@@ -67,6 +74,46 @@ def test_poll_does_not_store_ignored_senders(db, storage, fake_service):
 
     r2 = poll(db, service=fake_service, storage=storage)  # labelled -> not fetched again
     assert (r2.fetched, r2.ignored) == (0, 0)
+
+
+def test_r19_0112_noreply_erp_sender_is_not_ignored(db, storage, fake_service):
+    """Sample R19-0112 comes from noreply@kangaroo-erp-mail.net - a genuine remittance."""
+    gid = fake_service.gmail.add_raw(build_message(load_sample("R19-0112")).as_bytes())
+    r = poll(db, service=fake_service, storage=storage)
+    assert (r.ignored, r.stored) == (0, 1)
+    [e] = db.scalars(select(EmailMessage).where(EmailMessage.gmail_id == gid)).all()
+    assert e.sender_email == "noreply@kangaroo-erp-mail.net" and e.sample_code == "R19-0112"
+    assert [a.filename for a in db.scalars(select(EmailAttachment).where(EmailAttachment.email_id == e.id))] == [
+        "Payment_Advice_2469-258.docx"]
+    assert "AR-Processed" in fake_service.gmail.label_names(gid)
+    assert "AR-Ignored" not in fake_service.gmail.label_names(gid)
+
+
+def test_refetch_releases_messages_no_longer_ignored(db, storage, fake_service):
+    from app.gmail.client import ensure_label
+    from app.gmail.refetch import list_ignored, release
+
+    g = fake_service.gmail
+    ignored = ensure_label(fake_service, "AR-Ignored")
+    gid_r19 = g.add_raw(build_message(load_sample("R19-0112")).as_bytes(), ["INBOX", ignored])  # skipped earlier
+    gid_gh = g.add_raw(_mail("GitHub <noreply@github.com>", "code"), ["INBOX", ignored])
+    msgs = {m.gmail_id: m for m in list_ignored(db, fake_service)}
+    assert msgs[gid_r19].still_ignored_by is None and msgs[gid_gh].still_ignored_by == "domain github.com"
+    assert release(fake_service, [gid_r19]) == 1
+    r = poll(db, service=fake_service, storage=storage)  # the next poll stores R19-0112, GitHub stays out
+    assert (r.fetched, r.stored) == (1, 1)
+    assert db.scalar(select(EmailMessage.sample_code).where(EmailMessage.gmail_id == gid_r19)) == "R19-0112"
+    assert "AR-Ignored" in g.label_names(gid_gh)
+
+
+def test_no_sample_is_ignored():
+    from app.gmail.parsing import detect_forward, parse_raw_email
+    from app.gmail.sample_sender import samples_root
+
+    for code in sorted(p.name for p in samples_root().iterdir() if (p / "body.txt").exists()):
+        p = parse_raw_email(build_message(load_sample(code)).as_bytes())
+        f = detect_forward(p.body_text)
+        assert RULES.match_any(p.from_email, f.sender_email) is None, code
 
 
 def test_forwarded_from_ignored_sender_is_ignored(db, storage, fake_service):

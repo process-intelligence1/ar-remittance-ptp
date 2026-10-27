@@ -6,11 +6,11 @@ change it from the screens). Edit here only to change the factory defaults.
 """
 
 IGNORED_SENDERS = {
-    # a domain also covers its sub-domains (mail.anthropic.com, accountprotection.microsoft.com, ...)
+    # ONLY these exact domains; each also covers its sub-domains (mail.anthropic.com, ...).
+    # No address patterns: automated senders (e.g. noreply@kangaroo-erp-mail.net, sample R19-0112)
+    # can send genuine remittances, so everything else is stored and classified.
     "domains": ["github.com", "google.com", "accounts.google.com", "microsoft.com", "azure.com",
                 "anthropic.com", "claude.ai", "claude.com"],
-    # shell-style patterns on the full address (* = anything)
-    "patterns": ["no-reply@*", "noreply@*"],
 }
 
 INVOICE_MATCH = {
@@ -37,7 +37,8 @@ FAST_PATH_DESCRIPTION = ("EXACT invoice match + BSID open + same currency + amou
 DEFAULT_RULES: dict[str, tuple[dict, str]] = {
     "ignored_senders": (
         IGNORED_SENDERS,
-        "System senders whose e-mails are NOT stored: only an audit entry and the Gmail label AR-Ignored.",
+        "System sender DOMAINS (incl. sub-domains) whose e-mails are NOT stored: only an audit entry and the "
+        "Gmail label AR-Ignored. No address patterns - automated senders can send genuine remittances.",
     ),
     "scoring_weights": (
         {"invoice_match": 0.35, "amount_alignment": 0.30, "sender_company": 0.10,
