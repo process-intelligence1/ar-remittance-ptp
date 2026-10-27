@@ -4,7 +4,7 @@
 # Compressed sizes = each layer gzipped, which is close to what the registry stores.
 set -euo pipefail
 ctx="$1"; label="$2"; tag="size-report:$(echo "$label" | tr -c 'a-z0-9' '-')"
-out="${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+out="${GITHUB_STEP_SUMMARY:-/dev/null}"  # also printed to the log
 mb() { awk -v b="$1" 'BEGIN { printf "%.1f", b / 1048576 }'; }
 
 docker build -q -t "$tag" "$ctx" > /dev/null
@@ -47,5 +47,5 @@ inside() { docker run --rm --entrypoint sh "$tag" -c "$1" 2>/dev/null || true; }
             /opt/venv/lib/python3.12/site-packages/wheel* /root/.cache /home/appuser/.cache 2>/dev/null;
           command -v gcc cc make strip 2>/dev/null; echo "(end)"'
   echo '```'; echo "</details>"; echo ""
-} >> "$out"
+} | tee -a "$out"
 rm -rf "$work"
