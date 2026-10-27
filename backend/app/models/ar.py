@@ -250,6 +250,16 @@ class WorkItem(Base):
     confidence_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     confidence_category: Mapped[str | None] = mapped_column(String(10))  # HIGH | MEDIUM | LOW
     fast_path_override: Mapped[str | None] = mapped_column(String(60))
+    # M05: confidence = max(fast-path value, formula); which one won, and the formula value itself
+    confidence_source: Mapped[str | None] = mapped_column(String(12))  # FAST_PATH | FORMULA
+    formula_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    review_reasons: Mapped[list | None] = mapped_column(JSONB)  # why a high score still goes to review
+    # M05: who is paying, and how that was decided
+    extraction_line_id: Mapped[int | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.extraction_line.id", ondelete="SET NULL"))
+    customer_match_method: Mapped[str | None] = mapped_column(String(20))  # INVOICE | SENDER_ADDRESS | ...
+    customer_match_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    customer_evidence: Mapped[dict | None] = mapped_column(JSONB)
 
     # --- decision and workflow ---
     decision: Mapped[str | None] = mapped_column(String(30))  # AUTO_PROCESS | MANUAL_REVIEW | MANUAL_INVESTIGATION | EXCEPTION | DUPLICATE | OUT_OF_SCOPE

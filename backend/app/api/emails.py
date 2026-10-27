@@ -13,7 +13,7 @@ from app.api.security import require_admin_key
 from app.db import get_db
 from app.gmail.client import GmailNotConfigured
 from app.gmail.poller import PollAlreadyRunning, PollerDisabled, poll
-from app.models.ar import EmailAttachment, EmailClassification, EmailMessage, Extraction
+from app.models.ar import EmailAttachment, EmailClassification, EmailMessage, Extraction, WorkItem
 
 router = APIRouter(prefix="/api", tags=["E-mails"])
 admin = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(require_admin_key)])
@@ -40,7 +40,7 @@ def _extraction_summary(x: Extraction | None) -> dict | None:
 
 
 def _email_summary(e: EmailMessage, atts: list[EmailAttachment], cls: EmailClassification | None = None,
-                   ext: Extraction | None = None) -> dict:
+                   ext: Extraction | None = None, decisions: dict | None = None) -> dict:
     return {
         "email_ref": e.email_ref, "source": e.source, "sample_code": e.sample_code,
         "gmail_id": e.gmail_id, "sender_email": e.sender_email, "sender_name": e.sender_name,
@@ -50,6 +50,7 @@ def _email_summary(e: EmailMessage, atts: list[EmailAttachment], cls: EmailClass
         "body_tables": len((e.body_layout or {}).get("tables", [])),
         "classification": _classification_summary(cls),
         "extraction": _extraction_summary(ext),
+        "work_items": decisions or None,  # M05: rows per decision (AUTO_PROCESS, MANUAL_REVIEW, ...)
         "attachments": [
             {"id": a.id, "parent_id": a.parent_id, "depth": a.depth, "filename": a.filename,
              "mime_type": a.mime_type, "size_bytes": a.size_bytes, "sha256": a.sha256, "is_inline": a.is_inline,
@@ -84,8 +85,15 @@ def list_emails(limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=
     if emails:
         exts = {x.email_id: x for x in db.scalars(select(Extraction).where(
             Extraction.email_id.in_([e.id for e in emails]), Extraction.is_current.is_(True)))}
+    decisions: dict[int, dict] = {}
+    if emails:
+        for eid, decision, n in db.execute(select(WorkItem.email_id, WorkItem.decision, func.count())
+                                           .where(WorkItem.email_id.in_([e.id for e in emails]))
+                                           .group_by(WorkItem.email_id, WorkItem.decision)):
+            decisions.setdefault(eid, {})[decision] = n
     return {"total": total,
-            "items": [_email_summary(e, atts.get(e.id, []), cls.get(e.id), exts.get(e.id)) for e in emails]}
+            "items": [_email_summary(e, atts.get(e.id, []), cls.get(e.id), exts.get(e.id), decisions.get(e.id))
+                      for e in emails]}
 
 
 @admin.post("/gmail/poll", summary="Read new inbox e-mails now (one poll) - needs X-Admin-Key")
@@ -145,3 +153,23 @@ def extract_now(email_ref: str, db: Session = Depends(get_db)):
         raise HTTPException(409, str(exc)) from exc
     return {"email_ref": email.email_ref, "status": email.status,
             "extraction": _extraction_summary(current_extraction(db, email.id)), "warnings": r.warnings}
+
+
+@admin.post("/emails/{email_ref}/match",
+            summary="Match one extracted e-mail to BSID: work items, scores, decisions (M05) - needs X-Admin-Key")
+def match_now(email_ref: str, db: Session = Depends(get_db)):
+    from app.matching.service import AlreadyWorkedOn, NotExtractedYet, match_stored_email
+
+    email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == email_ref))
+    if email is None:
+        raise HTTPException(404, f"{email_ref} not found")
+    try:
+        rows = match_stored_email(db, email)
+    except (NotExtractedYet, AlreadyWorkedOn) as exc:
+        raise HTTPException(409, str(exc)) from exc
+    # identifiers and decisions only - no amounts or invoice numbers before the login exists
+    return {"email_ref": email.email_ref, "status": email.status,
+            "work_items": [{"entry_id": w.entry_id, "final_classification": w.final_classification,
+                            "match_level": w.match_level, "confidence": w.confidence_score,
+                            "confidence_source": w.confidence_source, "decision": w.decision, "status": w.status,
+                            "assigned_role": w.assigned_role} for w in rows]}

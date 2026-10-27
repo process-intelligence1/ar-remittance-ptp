@@ -192,7 +192,8 @@ def _prose(h: Header, inp: ExtractionInput, doc_currency: str | None) -> None:
                 if d:
                     h.promise_date, h.promise_text = d.value, d.raw
                     h.evidence["promise_date"] = src.locate(d.raw) | {"sentence": sent.strip()[:200]}
-            paid_words = re.search(r"transferred|remitted|paid|released|ueberwiesen|veranlasst|vire|transferimos|"
+            paid_words = re.search(r"transferred|remitted|paid|released|ueberwiesen|veranlasst|freigegeben|angewiesen|"
+                                   r"libere|liberado|vire|transferimos|"
                                    r"transferi|pagamos|efetuamos|振込|送金|payment\s+of", f)
             if not ptp and paid_words:
                 if h.total is None:

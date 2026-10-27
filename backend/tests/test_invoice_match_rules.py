@@ -31,10 +31,27 @@ def test_defaults_describe_the_three_levels():
     assert DEFAULT_RULES["fast_path"][0]["required_match_level"] == "EXACT"
 
 
+def _load_migration(revision_file: str):
+    path = Path(__file__).parents[1] / "alembic" / "versions" / revision_file
+    spec = importlib.util.spec_from_file_location(f"migration_{path.stem}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_migration_writes_the_same_values_as_the_defaults():
     assert migration.INVOICE_MATCH == INVOICE_MATCH
     assert migration.INVOICE_MATCH_DESCRIPTION == DEFAULT_RULES["invoice_match"][1]
-    assert migration.FAST_PATH_DESCRIPTION == FAST_PATH_DESCRIPTION
+    # the fast-path description was last rewritten by M05 (confidence = max(fast path, formula))
+    m05 = _load_migration("fe8ac1f65174_m05_matching_columns.py")
+    assert m05.FAST_PATH_DESCRIPTION == FAST_PATH_DESCRIPTION
+    assert "max(fast-path value, formula)" in FAST_PATH_DESCRIPTION
+
+
+def test_database_fast_path_records_the_max_rule(db):
+    row = db.get(RuleConfig, "fast_path")
+    assert row.value["confidence"] == "max_of_fast_path_and_formula"
+    assert (row.value["exact_full_match_score"], row.value["exact_amount_missing_score"]) == (92, 91)
 
 
 def test_database_has_invoice_match_and_no_digit_rules(db):

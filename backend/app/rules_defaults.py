@@ -52,8 +52,14 @@ EXTRACTION = {
     "llm_provider": "none",         # none | gemini | groq - optional fallback, interface only (M04)
 }
 
-FAST_PATH_DESCRIPTION = ("EXACT invoice match + BSID open + same currency + amount within tolerance = 92%; "
-                         "EXACT + amount missing = 91% (sets confidence directly).")
+FAST_PATH_DESCRIPTION = ("EXACT invoice match + BSID open + same currency + amount within tolerance -> 92%; "
+                         "EXACT + amount missing -> 91%. Confidence = max(fast-path value, formula); the fast path "
+                         "decides the category / decision.")
+
+CUSTOMER_IDENTIFICATION = {
+    "name_similarity_min": 0.85,   # payer name vs KNA1 name (difflib, legal forms removed)
+    "cluster_min_history": 3,      # past rows needed before payer / currency cluster flags are set
+}
 
 DEFAULT_RULES: dict[str, tuple[dict, str]] = {
     "ignored_senders": (
@@ -70,6 +76,11 @@ DEFAULT_RULES: dict[str, tuple[dict, str]] = {
         EXTRACTION,
         "Extraction (M04): tolerance for 'amount matches' and 'total = sum of lines' checks, "
         "US date order hint, optional hosted-LLM fallback (none = off).",
+    ),
+    "customer_identification": (
+        CUSTOMER_IDENTIFICATION,
+        "Customer identification (M05): payer-name similarity needed for a NAME match; history needed for "
+        "payer / currency cluster flags (blank below it).",
     ),
     "scoring_weights": (
         {"invoice_match": 0.35, "amount_alignment": 0.30, "sender_company": 0.10,
@@ -100,7 +111,7 @@ DEFAULT_RULES: dict[str, tuple[dict, str]] = {
     ),
     "fast_path": (
         {"enabled": True, "exact_full_match_score": 92, "exact_amount_missing_score": 91,
-         "amount_tolerance_pct": 2, "required_match_level": "EXACT"},
+         "amount_tolerance_pct": 2, "required_match_level": "EXACT", "confidence": "max_of_fast_path_and_formula"},
         FAST_PATH_DESCRIPTION,
     ),
     "duplicate_detection": (

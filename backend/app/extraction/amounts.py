@@ -91,7 +91,15 @@ def find_amounts(text: str, default_currency: str | None = None, need_currency: 
         ns, ne = m.start("num"), m.end("num")
         before, after = text[ns - 1:ns] if ns else "", text[ne:ne + 1]
         # part of an identifier or a date: UK-1043617, PAY161981, MUM/2627/04212, 19.10.2026, 2026-10-28
-        if (before.isalpha() and not (m.group("cur1") or "").strip()) or before in ("/", "#") or after in ("/",)                 or (after.isalpha() and not m.group("cur2") and not m.group("cr"))                 or (m.group("neg1") == "-" and m.start() > 0 and text[m.start() - 1].isalnum())                 or re.fullmatch(r"\d{1,2}[./]\d{1,2}[./]\d{2,4}|20\d\d[./]\d{1,2}[./]\d{1,2}", num)                 or (after == "-" and text[ne + 1:ne + 2].isdigit()):
+        # (only LATIN letters glue to a number - Japanese text runs straight on: "¥1,024,100を")
+        latin_before = before.isascii() and before.isalpha()
+        latin_after = after.isascii() and after.isalpha()
+        if ((latin_before and not (m.group("cur1") or "").strip())
+                or before in ("/", "#") or after == "/"
+                or (latin_after and not m.group("cur2") and not m.group("cr"))
+                or (m.group("neg1") == "-" and m.start() > 0 and text[m.start() - 1].isalnum())
+                or re.fullmatch(r"\d{1,2}[./]\d{1,2}[./]\d{2,4}|20\d\d[./]\d{1,2}[./]\d{1,2}", num)
+                or (after == "-" and text[ne + 1:ne + 2].isdigit())):
             continue
         cur = to_iso(m.group("cur1") or m.group("cur2"))
         if cur is None and re.fullmatch(r"\d{1,4}", num):

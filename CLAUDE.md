@@ -55,9 +55,14 @@ one plain sentence before running it, and summarise results in plain language.
   8/B, 2/Z) -> always review, "Possible OCR misread"; NONE 0.00 -> EXCEPTION "No BSID match found".
   Stored on ar.work_item as match_field (XBLNR/BELNR/VBELN), match_level, invoice_match_score.
 - Scoring per Knowledge Base: weights 0.35 invoice match, 0.30 amount, 0.10 sender->company code,
-  0.05 name, 0.10 date; raw / 0.90 = confidence %. Fast path: EXACT + BSID open + same currency +
-  amount within 2% = 92%; EXACT + amount missing = 91%.
+  0.05 name, 0.10 date; raw / 0.90 = formula confidence %. Fast path: EXACT + BSID open + same currency +
+  amount within 2% -> 92%; EXACT + amount missing -> 91%. Confidence = max(fast-path value, formula) - the
+  formula is always calculated; work_item.confidence_source says which won (FAST_PATH | FORMULA); the fast
+  path decides category / decision. 92 / 91 live in ar.rule_config "fast_path".
   >=80 + BSID = Auto Process; >=80 no BSID = Exception; 40-79 Manual Review; <40 Manual Investigation.
+  KB worked example recalculated (invoice 23756669 vs BSID 23756668, $13,497.36 vs $13,464.77, name 0.957,
+  144 days, sender mapped): as written 9/8 is no OCR pair -> NONE, 56.4% EXCEPTION; OCR variant (8 read as
+  B) -> NEAR, 83.7% Manual Review; exact number -> formula 95.3% > fast path 92% -> 95.3% (FORMULA), Auto Process.
   Rules live in ar.rule_config (defaults in backend/app/rules_defaults.py).
 - Payments without invoice numbers: find open invoices summing to the amount; always send to review.
 - Demo "business date" (default 2026-10-28) is used by all rules instead of the real date.
@@ -89,7 +94,7 @@ one plain sentence before running it, and summarise results in plain language.
 - M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
-  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (475 pass).
+  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (525 pass).
   Whole inbox is processed (NO date cut-off) except rule "ignored_senders" = ONLY the domains
   github.com, google.com, accounts.google.com, microsoft.com, azure.com, anthropic.com, claude.ai,
   claude.com (+ subdomains); NO address patterns (noreply@ ERP senders send real remittances, e.g.
@@ -128,4 +133,12 @@ one plain sentence before running it, and summarise results in plain language.
   strict hit 80 % (target 85 % missed - deliberate part-payments/exception scenarios R02 R04 R06 R16 R26),
   number in BSID 95.5 %, lines = stated total 96 %. scripts.extract [--reclean]; POST /api/admin/emails/{ref}/extract.
   Also fixed: M01 reply cleaner no longer cuts instalment lists; fold(keep_spaces=True) for aligned labels.
-- Next: M05 matching + scoring, then M06-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+- M05 done (matching) - see docs/modules/M05_matching.md and docs/reports/M05_matching_report.md.
+  app/matching/: customers (INVOICE > SENDER_ADDRESS > CUSTOMER_NUMBER > IBAN > SENDER_DOMAIN > NAME, KNVP
+  RG payers), invoice_match (EXACT/NEAR/NONE), scoring (confidence = max(fast path, formula),
+  confidence_source), unreferenced (0.5 %, <= 6 invoices, always review), duplicates (same kind only).
+  ar.work_item one per invoice (+ match_candidate, ptp_commitment); ENT- ids from ar.entry_id_seq.
+  Samples: 64 % Auto / 22 % Review / 4 % Exception / 6 % Duplicate; customer identified 215/217.
+  Review reasons incl. 'invoice of another customer than the sender' (third-party payment). scripts.match
+  [--rematch]; POST /api/admin/emails/{ref}/match. Names via difflib (rapidfuzz only if names get missed).
+- Next: M06 pipeline + worker, then M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.

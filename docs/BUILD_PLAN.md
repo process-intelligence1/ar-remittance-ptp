@@ -156,7 +156,9 @@ referenced remittances; list of failures by scenario.
   sender→company code 0.10, customer name 0.05, date 0.10; confidence = raw / 0.90. All weights,
   levels and thresholds read from `ar.rule_config` (key `invoice_match` replaces
   `digit_evidence_bands`). Fast path: EXACT match + BSID open + same currency + amount within 2 %
-  = 92 %; EXACT + amount missing = 91 %. Decision + status + recommended action per KB table.
+  -> 92 %; EXACT + amount missing -> 91 %. **Confidence = max(fast-path value, formula)** (the formula is
+  always calculated; `confidence_source` = FAST_PATH | FORMULA; the fast path decides the decision).
+  Decision + status + recommended action per KB table.
 - Duplicates: same invoice, customer, amount (±0.01 %), currency, sender domain within 7 days,
   or same attachment SHA-256 → `DUPLICATE`, `duplicate_of_id` set.
 - No BSID match → `EXCEPTION` ("No BSID match found").
@@ -212,7 +214,9 @@ locally and in Azure; a forced failure is retried and visible.
   extracted fields; candidates and score breakdown; action buttons; audit timeline),
   Audit Trail, Knowledge Base (content from the prototype, except: the "Digit Match Length"
   section becomes "Invoice Number Match" describing the EXACT / NEAR / NONE levels, and the worked
-  example is recalculated), Demo Control placeholder. Columns `Digit_Match_Length` →
+  example is recalculated as in docs/modules/M05_matching.md: NONE 56.4 % Exception / NEAR 83.7 % Manual
+  Review / EXACT 95.3 % = max(fast path 92 %, formula 95.3 %) Auto Process; fast-path text = "max(fast-path
+  value, formula)"), Demo Control placeholder. Columns `Digit_Match_Length` →
   `Match_Field` + `Match_Level`.
 - Remove the mailbox filter; company codes 1000–6000; region from BSID `XREF2`.
 - Demo login: pick one of the four demo users → API issues a JWT (signing key in Key Vault);
