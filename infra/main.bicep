@@ -6,8 +6,9 @@
 //
 // Two passes on the very first deployment:
 //   1) deployApp=false  -> creates everything except the Container App
-//   2) the owner stores the GHCR pull token in Key Vault (secret "ghcr-pull-token")
-//   3) deployApp=true   -> creates the Container App, which reads both secrets from Key Vault
+//   2) the owner stores the app secrets in Key Vault (gmail-token, admin-api-key; database-url is written here)
+//   3) deployApp=true   -> creates the Container App, which reads its secrets from Key Vault
+// The image (ghcr.io/process-intelligence1/ar-api) is PUBLIC, so pulling it needs no registry credentials.
 
 @description('Azure region; defaults to the resource group region.')
 param location string = resourceGroup().location
@@ -25,14 +26,11 @@ param clientIp string = ''
 @description('Object id of the owner (Entra user) who may read/write Key Vault secrets. Empty = none.')
 param adminPrincipalId string = ''
 
-@description('Create the Container App (false on the very first pass, before the GHCR token is in Key Vault).')
+@description('Create the Container App (false on the very first pass, before the app secrets are in Key Vault).')
 param deployApp bool = true
 
 @description('Container image to run. The GitHub workflow later switches it to the commit-SHA tag.')
 param containerImage string = 'ghcr.io/process-intelligence1/ar-api:latest'
-
-@description('GitHub user that owns the GHCR pull token.')
-param ghcrUsername string = 'process-intelligence1'
 
 @description('Front-end origins allowed to call the API (comma separated).')
 param corsOrigins string = 'http://localhost:5173'
@@ -151,7 +149,7 @@ resource pgFwClient 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@202
 }
 
 // ---------------------------------------------------------------------------
-// Key Vault (RBAC mode, Standard) holding DATABASE_URL and the GHCR pull token
+// Key Vault (RBAC mode, Standard) holding DATABASE_URL and the app secrets
 // ---------------------------------------------------------------------------
 resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: 'kv-ardemo-${suffix}'
@@ -281,11 +279,6 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
           identity: apiIdentity.id
         }
         {
-          name: 'ghcr-pull-token'
-          keyVaultUrl: '${kv.properties.vaultUri}secrets/ghcr-pull-token'
-          identity: apiIdentity.id
-        }
-        {
           // uploaded by the owner (M01); the app cannot start until it exists
           name: 'gmail-token'
           keyVaultUrl: '${kv.properties.vaultUri}secrets/gmail-token'
@@ -296,13 +289,6 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
           name: 'admin-api-key'
           keyVaultUrl: '${kv.properties.vaultUri}secrets/admin-api-key'
           identity: apiIdentity.id
-        }
-      ]
-      registries: [
-        {
-          server: 'ghcr.io'
-          username: ghcrUsername
-          passwordSecretRef: 'ghcr-pull-token'
         }
       ]
     }

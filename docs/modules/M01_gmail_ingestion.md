@@ -66,7 +66,7 @@ python -m pytest                                # 291 tests
 ```
 Azure (in your own terminal — the key goes into a variable, it is never shown):
 ```powershell
-$u = "https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io"
+$u = Read-Host "API URL (see GitHub environment "demo" / Azure portal)"
 $k = az keyvault secret show --vault-name kv-ardemo-snjjnahqgx3b4 --name admin-api-key --query value -o tsv
 Invoke-RestMethod -Method Post "$u/api/admin/gmail/poll" -Headers @{ "X-Admin-Key" = $k }   # poll now
 Invoke-RestMethod "$u/api/emails?sample_code=R01-0007"                                     # what was stored (no key needed)

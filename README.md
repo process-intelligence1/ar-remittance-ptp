@@ -1,5 +1,7 @@
 # AR Remittance & PTP Control Tower
 
+> **Demo application with synthetic data. All rights reserved.**
+
 End-to-end Accounts Receivable demo: customer e-mails (remittance advices and
 promises to pay) arrive in a Gmail inbox, are read (text + OCR), classified,
 matched to open SAP items (BSID), scored, and handled by AR users through a

@@ -1,6 +1,6 @@
 # M03 — classification report
 
-234 sample e-mails (expected answer = folder prefix), business date 2026-10-28, sender check: ADR6 (laptop database). Run time 9 s.
+234 sample e-mails (expected answer = folder prefix), business date 2026-10-28, sender check: ADR6 (laptop database). Run time 11 s.
 
 A result counts as correct only when the label, both flags (contains remittance / contains PTP) and, for out of scope, the category are all right.
 
@@ -19,6 +19,30 @@ A result counts as correct only when the label, both flags (contains remittance 
 About the hand-written e-mails: Hand-written e-mails NOT taken from data/samples (new wording) - a check beyond the samples, because the M03 keyword lists were written while looking at the samples. expected: REMITTANCE | PTP | MIXED | OUT_OF_SCOPE:<CATEGORY>. History (be honest when quoting the results): batch 1 (U01-U26) first run 23/26 rules + model, its misses led to two general fixes; batch 2 (U27-U44) written afterwards, first run rules only 8/18, rules + model 15/18, then its missed phrases were added to the keyword lists. Both batches are therefore no longer truly unseen: add a new batch before quoting a fresh number.
 
 The model was asked for 3 of 234 samples (rules confidence below 70 %).
+
+## Accuracy per type (expected type; PTP includes the P06 e-mails with payment + promise)
+
+| Method | REMITTANCE | PTP | OUT_OF_SCOPE |
+|---|---|---|---|
+| Rules only | 184/184 | 33/33 | 17/17 |
+| Rules + model, cross-validated | 184/184 | 33/33 | 17/17 |
+| Model alone, cross-validated | 183/184 | 21/33 | 17/17 |
+
+Model alone, cross-validated - misses (13); this is why the rules decide and the model is only asked when the rules are unsure:
+
+- P01-0186: expected PTP, model said REMITTANCE
+- P02-0188: expected PTP, model said REMITTANCE
+- P02-0189: expected PTP, model said REMITTANCE
+- P02-0191: expected PTP, model said REMITTANCE
+- P03-0197: expected PTP, model said REMITTANCE
+- P05-0201: expected PTP, model said MIXED
+- P05R-0202: expected REMITTANCE, model said MIXED
+- P06-0207: expected MIXED, model said REMITTANCE
+- P06-0208: expected MIXED, model said REMITTANCE
+- P06-0209: expected MIXED, model said REMITTANCE
+- P06-0210: expected MIXED, model said REMITTANCE
+- P06-0211: expected MIXED, model said REMITTANCE
+- P08-0217: expected PTP, model said REMITTANCE
 
 ## Confusion matrix (rules + model, cross-validated)
 

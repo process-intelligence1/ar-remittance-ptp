@@ -49,7 +49,7 @@ python -m pytest                                      # 314 tests
 ```
 Azure (key in a variable in your own terminal — never shown):
 ```powershell
-$u = "https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io"
+$u = Read-Host "API URL (see GitHub environment "demo" / Azure portal)"
 $k = az keyvault secret show --vault-name kv-ardemo-snjjnahqgx3b4 --name admin-api-key --query value -o tsv
 Invoke-RestMethod -Method Post "$u/api/admin/emails/EML-000002/parse" -Headers @{ "X-Admin-Key" = $k }
 Invoke-RestMethod "$u/api/emails?limit=5"     # parse status, method, chars, OCR confidence per attachment

@@ -217,6 +217,9 @@ locally and in Azure; a forced failure is retried and visible.
 - Remove the mailbox filter; company codes 1000–6000; region from BSID `XREF2`.
 - Demo login: pick one of the four demo users → API issues a JWT (signing key in Key Vault);
   buttons shown per role. (Entra ID comes in M12.)
+- The repo and the app are public, so until Entra ID (M12) the demo login ALSO requires a **demo
+  access code** (Key Vault secret, typed in by presenters; never in the repo or the front-end bundle).
+  Without a valid code: no token, no data.
 - Azure: Static Web Apps **Free** tier; GitHub Actions builds and deploys it; API CORS updated.
 - Add simple public `/privacy` and `/terms` pages on the Static Web App, then give me the steps to
   add them in Google Auth Platform → Branding and publish the Gmail app to "In production"

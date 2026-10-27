@@ -11,7 +11,7 @@ one plain sentence before running it, and summarise results in plain language.
 
 ## Environment (owner's laptop)
 - Windows, PowerShell (inside VS Code), 8 GB RAM - keep things light, no Docker locally.
-- Project folder: D:\Finance\AR_Remittance  (GitHub: process-intelligence1/ar-remittance-ptp, private)
+- Project folder: D:\Finance\AR_Remittance  (GitHub: process-intelligence1/ar-remittance-ptp, PUBLIC)
 - Secrets folder: D:\Finance\Secret  (OUTSIDE the project)
 - PostgreSQL 17 on localhost:5432, database ar_demo, app user ar_app
 - Python 3.12 (virtual env at backend\.venv), Node.js LTS, Tesseract OCR at C:\Program Files\Tesseract-OCR
@@ -39,6 +39,10 @@ one plain sentence before running it, and summarise results in plain language.
 5. Database changes only through Alembic migrations. Never edit tables by hand.
 6. Ask before: git push, deleting files, changing anything outside D:\Finance\AR_Remittance,
    anything in Azure.
+7. The GitHub repo and the container image are PUBLIC. Never commit secrets (rule 2), the Azure app
+   URL or other environment URLs (write "see GitHub environment \"demo\" / Azure portal"), or real
+   customer data - samples and SAP data are synthetic. Secret scanning push protection is on; run the
+   "Secret scan" workflow (gitleaks, values redacted) before anything sensitive-looking is merged.
 
 ## Business decisions
 - One row per INVOICE (ar.work_item); several rows can belong to one e-mail.
@@ -74,13 +78,13 @@ one plain sentence before running it, and summarise results in plain language.
 - Day 1 done: tools installed, repo created, local database created.
 - Day 2: backend skeleton, tables (Alembic), reference data loaded, first API - see docs/DAY2_GUIDE.md.
 - Day 3 done (Milestone 1): API live in Azure Container Apps - see docs/DAY3_GUIDE.md.
-  URL https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io . rg-ar-demo (centralindia):
+  API URL: see GitHub environment "demo" / Azure portal (never write it in the repo). rg-ar-demo (centralindia):
   ar-api, cae-ar-demo, psql-ar-demo-snjjnahqgx3b4 (B1ms, data loaded), kv-ardemo-snjjnahqgx3b4,
   id-ar-api, log-ar-demo, policy "allowed resource types"; budget-ar-demo ($1) on the subscription.
   Azure account processintelligence1@outlook.com (Free Trial, spending limit on).
   Code deploys: push to main -> .github/workflows/deploy.yml (OIDC, environment "demo", no reviewer:
   GitHub Free). Infra deploys: .\infra\deploy.ps1 [-WhatIf] (rotates DB password each run).
-  GHCR pull token must be a CLASSIC PAT (read:packages), stored only in Key Vault by the owner.
+  Image ghcr.io/process-intelligence1/ar-api is PUBLIC: no GHCR pull token (removed from Bicep + Key Vault).
 - M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
@@ -107,4 +111,12 @@ one plain sentence before running it, and summarise results in plain language.
   from app/classification/model.npz because GHCR is at ~491/500 MB. Retrain: scripts.train_classifier.
   scripts.classify; POST /api/admin/emails/{ref}/classify; Gmail labels AR-Remittance/AR-PTP/AR-OutOfScope
   only where Gmail is polled (Azure). Tests must never reach real Gmail (conftest turns POLLER_ENABLED on).
+- Public repo + image (27 Oct 2026): gitleaks scan of full history, files and stored images was clean
+  (workflow "Secret scan"); the app URL stays in 3 old commits (accepted - not a secret). Image slimmed
+  251 -> 236 MB: base image pinned by digest, large libraries (requirements-heavy.txt: PyMuPDF, OpenCV,
+  numpy, Pillow) in their own layer /opt/heavy, no pip, uvicorn without unused extras; OpenCV stays (a
+  Pillow-only swap lowered OCR confidence - rejected). Workflow "Image size report" = layer breakdown
+  without pushing. Clean-up keeps the 3 newest versions + whatever Azure runs. Deploys wait for the
+  owner's approval (environment "demo" reviewer). Known, not fixed: OpenCV minAreaRect returns -90..0 here,
+  so M02 deskew skips some tilted scans (e.g. R19-0114 at 0.24 deg, R29-0161).
 - Next: M04 extraction, then M05-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.

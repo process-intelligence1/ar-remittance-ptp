@@ -4,7 +4,7 @@ Result: the API runs in Azure, uses an Azure PostgreSQL database, and every push
 to `main` that changes `backend/**` or `infra/**` rebuilds and redeploys it
 automatically. Everything is described in code (Bicep + a GitHub workflow).
 
-**Public URL:** https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io
+**Public URL:** not written in the repo (see GitHub environment "demo" / Azure portal: Container App `ar-api` → Application Url).
 
 | Try it | What you should see |
 |---|---|
@@ -28,7 +28,7 @@ All in resource group **`rg-ar-demo`**, region **Central India**, tagged
 | `ar-api` | **Container App** — runs our FastAPI backend. 0 to 1 copies, ¼ CPU, ½ GB memory. HTTPS only. |
 | `cae-ar-demo` | **Container Apps environment** — the "building" the app lives in. Consumption (pay-per-use) only. |
 | `psql-ar-demo-snjjnahqgx3b4` | **PostgreSQL 17** server, size B1ms (smallest), 32 GB, 7-day backups. Database `ar_demo`. |
-| `kv-ardemo-snjjnahqgx3b4` | **Key Vault** — the safe. Holds `database-url` and `ghcr-pull-token`. |
+| `kv-ardemo-snjjnahqgx3b4` | **Key Vault** — the safe. Holds `database-url`, `gmail-token` and `admin-api-key` (the GHCR pull token was removed when the image became public). |
 | `id-ar-api` | **Managed identity** — the app's "staff badge" for opening the Key Vault. No password. |
 | `log-ar-demo` | **Log Analytics** — stores the app's logs. Hard cap 0.1 GB per day, kept 30 days. |
 | `ar-demo-allowed-resource-types` | **Azure Policy** — Azure refuses to create any other kind of resource in this group (no VMs, no container registry, no public IPs, …). |
@@ -73,7 +73,7 @@ Files in the repo:
   │   └──┬──────────┬────────┘                                               │
   │      │ HTTPS    │ reads secrets as id-ar-api                             │
   │      │          ▼                                                        │
-  │      │   ┌──────────────┐  database-url, ghcr-pull-token                 │
+  │      │   ┌──────────────┐  database-url, gmail-token, ...                │
   │      │   │  Key Vault   │                                                │
   │      │   └──────────────┘                                                │
   │      │ DATABASE_URL (TLS)                                                │
@@ -85,7 +85,7 @@ Files in the repo:
   │   Policy: only these resource types allowed                              │
   └──────────────────────────────────────────────────────────────────────────┘
         ▲
-        │ https://ar-api.reddune-37179e92.centralindia.azurecontainerapps.io
+        │ https://<ar-api URL - see GitHub environment "demo" / Azure portal>
    Browser / front-end (later)
 ```
 
@@ -149,16 +149,9 @@ Subscription: **Azure free account** (`FreeTrial`, spending limit **On**).
 
 ## 5. Things to remember
 
-- **GHCR pull token** (`ghcr-pull-token` in Key Vault) is a **classic** GitHub
-  token with only `read:packages`. Fine-grained tokens do **not** work with
-  GHCR (that was today's "Unauthorized … UNSUPPORTED" error). When it expires,
-  create a new classic token and store it — in **your own** terminal:
-  ```powershell
-  $t = Read-Host "Paste GHCR pull token" -AsSecureString
-  az keyvault secret set --vault-name kv-ardemo-snjjnahqgx3b4 --name ghcr-pull-token --value ([System.Net.NetworkCredential]::new('', $t).Password) --output none
-  Remove-Variable t
-  ```
-  then re-run the GitHub workflow (Actions → *Build and deploy API* → *Run workflow*).
+- **GHCR pull token: no longer used.** Since the repo and the image are public, Azure pulls
+  `ghcr.io/process-intelligence1/ar-api` without credentials (the token and its Key Vault secret
+  were removed). History: it had to be a *classic* token with `read:packages`.
 - **No approval step:** GitHub Free can't require a reviewer on a private repo,
   so every push to `main` deploys. Only `main` can deploy to `demo`.
 - **The app currently uses the PostgreSQL admin login.** A separate, smaller

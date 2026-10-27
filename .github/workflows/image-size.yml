@@ -1,11 +1,9 @@
 # Build the API image WITHOUT pushing or deploying and report where its size goes (layers,
 # largest Python packages, system libraries, Tesseract data). Compares with main.
-# Run it from the Actions tab ("Run workflow"), or by pushing the branch size-check.
+# Run it from the Actions tab ("Run workflow").
 name: Image size report
 
 on:
-  push:
-    branches: [size-check]
   workflow_dispatch:
 
 jobs:

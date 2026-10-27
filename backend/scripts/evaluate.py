@@ -129,6 +129,18 @@ def classification() -> int:
          f"(rules confidence below {cfg['model_below_confidence']} %)."]
 
     labels = ["REMITTANCE", "PTP", "OUT_OF_SCOPE"]
+    per_type = lambda oks: [f"{sum(ok for ok, e in zip(oks, expected) if e.label == t)}/"
+                            f"{sum(e.label == t for e in expected)}" for t in labels]
+    L += ["", "## Accuracy per type (expected type; PTP includes the P06 e-mails with payment + promise)", "",
+          "| Method | " + " | ".join(labels) + " |", "|---|" + "---|" * len(labels)]
+    for name, oks in (("Rules only", ok_rules), ("Rules + model, cross-validated", ok_comb),
+                      ("Model alone, cross-validated", ok_model)):
+        L.append(f"| {name} | " + " | ".join(per_type(oks)) + " |")
+    model_misses = [(c, e.key, k) for (c, _, e), k in zip(corpus, model_only) if k != e.key]
+    L += ["", f"Model alone, cross-validated - misses ({len(model_misses)}); this is why the rules decide and the "
+          "model is only asked when the rules are unsure:", ""]
+    L += ["None."] if not model_misses else [f"- {c}: expected {e}, model said {k}" for c, e, k in model_misses]
+
     conf = Counter((e.label, r.label) for r, e in zip(combined, expected))
     L += ["", "## Confusion matrix (rules + model, cross-validated)", "",
           "| Expected \\ Result | " + " | ".join(labels) + " |", "|---|" + "---|" * len(labels)]
