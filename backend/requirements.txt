@@ -1,6 +1,9 @@
+# Large, rarely changing libraries are in requirements-heavy.txt (own image layer, see Dockerfile)
+-r requirements-heavy.txt
 # Web API
 fastapi==0.115.6
-uvicorn[standard]==0.32.1
+uvicorn==0.32.1
+httptools==0.9.0  # fast HTTP parser; the other [standard] extras (reload, websockets, uvloop, yaml) are not used
 # Database
 SQLAlchemy==2.0.36
 psycopg[binary]==3.2.3
@@ -20,11 +23,7 @@ mail-parser-reply==1.36
 azure-storage-blob==12.31.0
 azure-identity==1.27.0
 # Document reading and OCR (M02)
-pymupdf==1.28.2  # 1.x on purpose: 2.0 pulls in an unused AI layout add-on (onnxruntime etc., ~80 MB)
 pdfplumber==0.11.10
 python-docx==1.2.0
-opencv-python-headless==5.0.0.93
-numpy==2.5.4
-pillow==13.0.0
 pytesseract==0.3.13
 langdetect==1.0.9

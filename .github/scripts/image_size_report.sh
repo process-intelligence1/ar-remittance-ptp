@@ -33,14 +33,15 @@ inside() { docker run --rm --entrypoint sh "$tag" -c "$1" 2>/dev/null || true; }
   echo ""
   echo "<details><summary>Largest Python packages (unpacked MB)</summary>"
   echo ""; echo '```'
-  inside 'du -sm /opt/venv/lib/python3.12/site-packages/* /opt/py/*/* 2>/dev/null | sort -rn | head -25'
+  inside 'du -sm /opt/venv/lib/python3.12/site-packages/* /opt/heavy/* 2>/dev/null | sort -rn | head -25'
   echo '```'; echo "</details>"; echo ""
   echo "<details><summary>Largest system libraries, Tesseract data, other folders (unpacked MB)</summary>"
   echo ""; echo '```'
   inside 'du -sm /usr/lib/x86_64-linux-gnu/* 2>/dev/null | sort -rn | head -20; echo ---;
           du -sm /usr/share/tesseract-ocr/*/tessdata/* 2>/dev/null | sort -rn | head -12; echo ---;
-          du -sm /usr/local/lib/python3.12 /usr/share/doc /usr/share/man /usr/share/locale /usr/share/zoneinfo /var/lib/dpkg /opt/venv /opt/py /srv 2>/dev/null'
+          du -sm /usr/local/lib/python3.12 /usr/share/doc /usr/share/man /usr/share/locale /usr/share/zoneinfo /var/lib/dpkg /opt/venv /opt/heavy /srv 2>/dev/null'
   echo '```'; echo "</details>"; echo ""
+  echo "Smoke test: $(inside 'cd /srv/backend && python -c "import app.main, cv2, fitz; from app.classification.model import load_model; print(\"app imports ok, model trained on\", load_model().trained_on)"')"; echo ""
   echo "<details><summary>pip / build tools / caches left in the image</summary>"
   echo ""; echo '```'
   inside 'ls -d /opt/venv/lib/python3.12/site-packages/pip* /opt/venv/lib/python3.12/site-packages/setuptools* \

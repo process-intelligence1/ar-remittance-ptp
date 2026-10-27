@@ -1,0 +1,7 @@
+# Large libraries that rarely change. The Dockerfile installs them into their own image layer, so a
+# change to requirements.txt does not create a new copy of these ~110 MB (free image storage: 500 MB).
+# Change these only on purpose. requirements.txt includes this file.
+pymupdf==1.28.2  # 1.x on purpose: 2.0 pulls in an unused AI layout add-on (onnxruntime etc., ~80 MB)
+opencv-python-headless==5.0.0.93
+numpy==2.5.4
+pillow==13.0.0
