@@ -13,23 +13,41 @@ IGNORED_SENDERS = {
     "patterns": ["no-reply@*", "noreply@*"],
 }
 
+INVOICE_MATCH = {
+    "primary_field": "XBLNR",
+    "alternate_fields": ["BELNR", "VBELN"],  # accepted only on an EXACT match
+    # applied the same way to the extracted invoice number and to the BSID fields
+    "normalisation": {"upper_case": True, "remove_spaces": True, "remove_separators": ["-", "/", "."],
+                      "strip_leading_zeros": True},
+    "levels": [
+        {"level": "EXACT", "score": 1.00, "fast_path_eligible": True,
+         "label": "Identical, or identical after normalisation"},
+        {"level": "NEAR", "score": 0.70, "max_char_differences": 1,
+         # compared after upper-casing, so a lower-case l counts as L
+         "ocr_confusions": [["0", "O"], ["1", "I", "L"], ["5", "S"], ["8", "B"], ["2", "Z"]],
+         "always_review": True, "reason": "Possible OCR misread",
+         "label": "Exactly one character differs and it is a common OCR confusion"},
+        {"level": "NONE", "score": 0.00, "decision": "EXCEPTION", "reason": "No BSID match found",
+         "label": "No invoice-number match"},
+    ],
+}
+FAST_PATH_DESCRIPTION = ("EXACT invoice match + BSID open + same currency + amount within tolerance = 92%; "
+                         "EXACT + amount missing = 91% (sets confidence directly).")
+
 DEFAULT_RULES: dict[str, tuple[dict, str]] = {
     "ignored_senders": (
         IGNORED_SENDERS,
         "System senders whose e-mails are NOT stored: only an audit entry and the Gmail label AR-Ignored.",
     ),
     "scoring_weights": (
-        {"digit_evidence": 0.35, "amount_alignment": 0.30, "sender_company": 0.10,
+        {"invoice_match": 0.35, "amount_alignment": 0.30, "sender_company": 0.10,
          "customer_name": 0.05, "date_proxy": 0.10, "normalization_max": 0.90},
         "Confidence formula weights. Raw score is divided by normalization_max to give 0-100%.",
     ),
-    "digit_evidence_bands": (
-        {"bands": [{"min_digits": 10, "score": 1.00, "label": "Exact 10-digit match"},
-                   {"min_digits": 8, "score": 0.90, "label": "Strong partial match"},
-                   {"min_digits": 7, "score": 0.82, "label": "Partial match"},
-                   {"min_digits": 6, "score": 0.70, "label": "Weak partial match"},
-                   {"min_digits": 0, "score": 0.00, "label": "No reliable match"}]},
-        "Score for how many invoice digits / reference characters match the BSID item.",
+    "invoice_match": (
+        INVOICE_MATCH,
+        "Invoice-number match against BSID: XBLNR primary, BELNR/VBELN exact-only alternates. "
+        "EXACT 1.00, NEAR (one OCR-confusable character) 0.70 always review, NONE 0.00 = exception.",
     ),
     "amount_alignment_bands": (
         {"bands": [{"max_diff_pct": 2, "score": 1.00}, {"max_diff_pct": 5, "score": 0.80},
@@ -50,8 +68,8 @@ DEFAULT_RULES: dict[str, tuple[dict, str]] = {
     ),
     "fast_path": (
         {"enabled": True, "exact_full_match_score": 92, "exact_amount_missing_score": 91,
-         "amount_tolerance_pct": 2},
-        "Exact 10-digit invoice + BSID + same currency (+ amount within tolerance) sets confidence directly.",
+         "amount_tolerance_pct": 2, "required_match_level": "EXACT"},
+        FAST_PATH_DESCRIPTION,
     ),
     "duplicate_detection": (
         {"amount_tolerance_pct": 0.01, "window_days": 7, "match_on_attachment_hash": True},

@@ -165,8 +165,9 @@ class WorkItem(Base):
     bsid_match_flag: Mapped[bool] = mapped_column(Boolean, default=False)
     bsid_open_item_status: Mapped[str | None] = mapped_column(String(20))  # OPEN | PARTIALLY_OPEN | CLEARED
     match_type: Mapped[str | None] = mapped_column(String(40))
-    digit_match_length: Mapped[int | None] = mapped_column(Integer)
-    digit_evidence_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))
+    match_field: Mapped[str | None] = mapped_column(String(10))  # XBLNR | BELNR | VBELN
+    match_level: Mapped[str | None] = mapped_column(String(10))  # EXACT | NEAR | NONE
+    invoice_match_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))
     amount_difference_pct: Mapped[Decimal | None] = mapped_column(Numeric(9, 4))
     amount_alignment_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))
     sender_company_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))

@@ -72,6 +72,13 @@ M01 → M08 plus the simple demo login in M08. After that: M09 → M14.
   → publish the app to "In production" (avoids 7-day token expiry); run `scripts.gmail_auth`;
   upload the token file to Key Vault.
 
+- Follow-ups (agreed after first run): no date cutoff — the whole inbox is processed; sender ignore
+  list `ignored_senders` in ar.rule_config (github.com, google.com, accounts.google.com,
+  microsoft.com, azure.com, anthropic.com, claude.ai, claude.com, no-reply@*, noreply@*) — ignored
+  mail is never stored, only an audit entry + Gmail label `AR-Ignored`; `POLLER_ENABLED` (true in
+  Azure only); admin key header on `/api/admin/*` (key in Key Vault); live sample sends use the
+  current time as Date (original kept in `X-Original-Date`).
+
 **Done when:** sending R01-0007 via the sample sender shows it in Gmail with the customer as sender;
 the poller stores it with its PDF; running the poller twice creates no duplicates; a ZIP sample
 (R30-0165) stores its inner files; tests pass.
@@ -113,6 +120,9 @@ mixed e-mails (P03R, P05R, P06) flagged as containing both.
 - Header: payer name, sender domain, payment reference (PAY…, ZA-…, PV…, RA-2026-…, REM-…),
   payment date, total, currency. Lines: invoice ref (raw + normalised), amount, gross,
   deduction + reason (e.g. TDS), credit note flag, promise date, instalments (P08).
+- Extract the invoice number as written (raw) plus a normalised form used for matching
+  (upper case; spaces and `- / .` separators removed; leading zeros removed) — the same
+  normalisation is applied to BSID XBLNR / BELNR / VBELN.
 - Reference patterns from BSID `XBLNR` shapes (8-digit, `AAA/9999/99999`, `AA-9999999`,
   `AA-99-999999`, `AA9999-99999`, `AAA-999999`, 10-digit). Normalise both sides the same way.
 - Locale-aware amounts (`15.999,58`, `₹4,19,733.30`, `¥1,234`, KWD 3 decimals) and dates
@@ -132,8 +142,19 @@ referenced remittances; list of failures by scenario.
   (rapidfuzz, NAME1/NAME2) and bank details (KNBK).
 - Candidates: open BSID items of that customer by XBLNR/BELNR/VBELN/ZUONR/XREF1–3;
   store all in `ar.match_candidate` with component scores.
-- Score exactly per Knowledge Base, reading weights/bands/thresholds from `ar.rule_config`
-  (fast path 92/91; normalise raw/0.90). Decision + status + recommended action per KB table.
+- **Invoice-number matching (replaces the prototype's "digit match length"):** compare the
+  extracted invoice number with BSID `XBLNR` (primary); exact matches on `BELNR` or `VBELN` are
+  accepted as alternates. Store `match_field` (XBLNR/BELNR/VBELN) and `match_level`:
+  | Level | Rule | Invoice match score | Handling |
+  |---|---|---|---|
+  | EXACT | identical, or identical after normalisation (case, spaces, `- / .`, leading zeros) | 1.00 | normal scoring, fast path eligible |
+  | NEAR | exactly one character different and it is a common OCR confusion (0/O, 1/I/l, 5/S, 8/B, 2/Z) | 0.70 | always review, reason "Possible OCR misread" |
+  | NONE | anything else | 0.00 | EXCEPTION "No BSID match found" |
+- Score per Knowledge Base with the component renamed `invoice_match` (weight 0.35); amount 0.30,
+  sender→company code 0.10, customer name 0.05, date 0.10; confidence = raw / 0.90. All weights,
+  levels and thresholds read from `ar.rule_config` (key `invoice_match` replaces
+  `digit_evidence_bands`). Fast path: EXACT match + BSID open + same currency + amount within 2 %
+  = 92 %; EXACT + amount missing = 91 %. Decision + status + recommended action per KB table.
 - Duplicates: same invoice, customer, amount (±0.01 %), currency, sender domain within 7 days,
   or same attachment SHA-256 → `DUPLICATE`, `duplicate_of_id` set.
 - No BSID match → `EXCEPTION` ("No BSID match found").
@@ -143,7 +164,8 @@ referenced remittances; list of failures by scenario.
 - Payer/currency cluster flags from history (blank when not enough history).
 - Uses `business_date` from rule_config for date scoring.
 
-**Done when:** unit test reproduces the KB worked example (with the /0.90 normalisation);
+**Done when:** unit tests cover EXACT / normalised EXACT / NEAR / NONE and the KB worked example
+recalculated with invoice matching (/0.90 normalisation);
 evaluation report: decision distribution per scenario; JP-26-002271 (P03-0193) matches
 customer 102419 / SGD 8,300; a re-sent sample becomes DUPLICATE.
 
@@ -186,12 +208,17 @@ locally and in Azure; a forced failure is retried and visible.
 - Screens: Dashboard, Action Queue (one row per invoice; column picker, filters, bulk select),
   Record Detail (original e-mail + attachment viewer with highlighted evidence beside the
   extracted fields; candidates and score breakdown; action buttons; audit timeline),
-  Audit Trail, Knowledge Base (content from the prototype), Demo Control placeholder.
+  Audit Trail, Knowledge Base (content from the prototype, except: the "Digit Match Length"
+  section becomes "Invoice Number Match" describing the EXACT / NEAR / NONE levels, and the worked
+  example is recalculated), Demo Control placeholder. Columns `Digit_Match_Length` →
+  `Match_Field` + `Match_Level`.
 - Remove the mailbox filter; company codes 1000–6000; region from BSID `XREF2`.
 - Demo login: pick one of the four demo users → API issues a JWT (signing key in Key Vault);
   buttons shown per role. (Entra ID comes in M12.)
 - Azure: Static Web Apps **Free** tier; GitHub Actions builds and deploys it; API CORS updated.
-- Add simple public /privacy and /terms pages on the Static Web App, then give me the steps to add them in Google Auth Platform → Branding and publish the Gmail app to "In production" (ends the 7-day token expiry of Testing mode). Then re-run the Gmail sign-in and token upload.
+- Add simple public `/privacy` and `/terms` pages on the Static Web App, then give me the steps to
+  add them in Google Auth Platform → Branding and publish the Gmail app to "In production"
+  (ends the 7-day token expiry of Testing mode). Then re-run the Gmail sign-in and token upload.
 
 **Done when:** all five screens work on the Azure URL with live data; new sample e-mail appears
 in the Action Queue without refresh; works on a 1366-px laptop screen.

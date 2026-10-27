@@ -44,8 +44,15 @@ one plain sentence before running it, and summarise results in plain language.
 - One row per INVOICE (ar.work_item); several rows can belong to one e-mail.
 - E-mail type when read: REMITTANCE / PTP / OUT_OF_SCOPE (an e-mail can contain both remittance
   and PTP lines). Final classification per row: REMITTANCE / PTP / DUPLICATE / EXCEPTION / OUT_OF_SCOPE.
-- Scoring per Knowledge Base: weights 0.35 digit, 0.30 amount, 0.10 sender->company code,
-  0.05 name, 0.10 date; raw / 0.90 = confidence %. Fast path 92% / 91%.
+- Invoice-number matching (replaces the prototype's "digit match length"): extracted invoice number
+  vs BSID XBLNR (primary); exact BELNR / VBELN matches accepted as alternates. Both sides normalised
+  (upper case; spaces and - / . removed; leading zeros removed). Levels: EXACT 1.00 (fast path
+  eligible); NEAR 0.70 = exactly one character differs and it is an OCR confusion (0/O, 1/I/L, 5/S,
+  8/B, 2/Z) -> always review, "Possible OCR misread"; NONE 0.00 -> EXCEPTION "No BSID match found".
+  Stored on ar.work_item as match_field (XBLNR/BELNR/VBELN), match_level, invoice_match_score.
+- Scoring per Knowledge Base: weights 0.35 invoice match, 0.30 amount, 0.10 sender->company code,
+  0.05 name, 0.10 date; raw / 0.90 = confidence %. Fast path: EXACT + BSID open + same currency +
+  amount within 2% = 92%; EXACT + amount missing = 91%.
   >=80 + BSID = Auto Process; >=80 no BSID = Exception; 40-79 Manual Review; <40 Manual Investigation.
   Rules live in ar.rule_config (defaults in backend/app/rules_defaults.py).
 - Payments without invoice numbers: find open invoices summing to the amount; always send to review.

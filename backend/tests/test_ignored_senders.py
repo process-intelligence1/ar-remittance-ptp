@@ -100,5 +100,6 @@ def test_purge_lists_then_deletes_rows_and_files(db, storage, fake_service):
     assert storage.get(keep.raw_uri)  # untouched
     assert not (storage.root / "emails" / sys_mail.email_ref).exists()  # empty folder removed
     assert g.label_names(gid_sys) >= {"AR-Ignored"} and "AR-Processed" not in g.label_names(gid_sys)
-    audit = db.scalar(select(AuditLog).where(AuditLog.action == "EMAIL_PURGED_IGNORED_SENDER"))
-    assert audit.entity_id == sys_mail.email_ref and audit.details["reason"] == "ignored system sender"
+    audit = db.scalar(select(AuditLog).where(AuditLog.action == "EMAIL_PURGED_IGNORED_SENDER",
+                                             AuditLog.entity_id == sys_mail.email_ref))
+    assert audit.details["reason"] == "ignored system sender" and audit.details["rule"] == "domain anthropic.com"
