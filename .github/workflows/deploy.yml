@@ -104,8 +104,8 @@ jobs:
         id: running
         if: always()
         run: |
-          images=$(az containerapp revision list -n "$APP_NAME" -g "$RESOURCE_GROUP"                    --query "[?properties.active].properties.template.containers[].image" -o tsv 2>/dev/null | sort -u | tr '
-' ' ')
+          images=$(az containerapp revision list -n "$APP_NAME" -g "$RESOURCE_GROUP" \
+                   --query "[?properties.active].properties.template.containers[].image" -o tsv 2>/dev/null | sort -u | tr '\n' ' ')
           echo "Running: ${images:-unknown}"
           echo "images=$images" >> "$GITHUB_OUTPUT"
 
