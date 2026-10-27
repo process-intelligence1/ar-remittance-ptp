@@ -1,7 +1,8 @@
-"""E-mails received (metadata only) and a manual Gmail poll.
+"""E-mails received (metadata only), a manual Gmail poll, reading (M02) and classification (M03).
 
 Until the demo login exists (M08) these endpoints show NO e-mail bodies and NO files -
-only references, senders, subjects, dates and attachment names/sizes/hashes.
+only references, senders, subjects, dates, attachment names/sizes/hashes and the classification
+(signal NAMES only - the matched text snippets stay in the database).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -11,13 +12,25 @@ from app.api.security import require_admin_key
 from app.db import get_db
 from app.gmail.client import GmailNotConfigured
 from app.gmail.poller import PollAlreadyRunning, PollerDisabled, poll
-from app.models.ar import EmailAttachment, EmailMessage
+from app.models.ar import EmailAttachment, EmailClassification, EmailMessage
 
 router = APIRouter(prefix="/api", tags=["E-mails"])
 admin = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(require_admin_key)])
 
 
-def _email_summary(e: EmailMessage, atts: list[EmailAttachment]) -> dict:
+def _classification_summary(c: EmailClassification | None) -> dict | None:
+    if c is None:
+        return None
+    reasons = c.reasons or {}
+    return {"label": c.label, "contains_remittance": c.contains_remittance, "contains_ptp": c.contains_ptp,
+            "out_of_scope_category": c.out_of_scope_category, "confidence": c.confidence, "method": c.method,
+            "signals": [{k: v for k, v in sig.items() if k != "text"} for sig in reasons.get("signals", [])],
+            "model": {k: v for k, v in (reasons.get("model") or {}).items() if k in ("answer", "probability", "decision")}
+            or None,
+            "classified_at": c.created_at}
+
+
+def _email_summary(e: EmailMessage, atts: list[EmailAttachment], cls: EmailClassification | None = None) -> dict:
     return {
         "email_ref": e.email_ref, "source": e.source, "sample_code": e.sample_code,
         "gmail_id": e.gmail_id, "sender_email": e.sender_email, "sender_name": e.sender_name,
@@ -25,6 +38,7 @@ def _email_summary(e: EmailMessage, atts: list[EmailAttachment]) -> dict:
         "subject": e.subject, "received_at": e.received_at, "business_date": e.business_date,
         "status": e.status, "error": e.error, "created_at": e.created_at, "language": e.language,
         "body_tables": len((e.body_layout or {}).get("tables", [])),
+        "classification": _classification_summary(cls),
         "attachments": [
             {"id": a.id, "parent_id": a.parent_id, "depth": a.depth, "filename": a.filename,
              "mime_type": a.mime_type, "size_bytes": a.size_bytes, "sha256": a.sha256, "is_inline": a.is_inline,
@@ -51,7 +65,11 @@ def list_emails(limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=
         for a in db.scalars(select(EmailAttachment).where(EmailAttachment.email_id.in_([e.id for e in emails]))
                             .order_by(EmailAttachment.id)):
             atts.setdefault(a.email_id, []).append(a)
-    return {"total": total, "items": [_email_summary(e, atts.get(e.id, [])) for e in emails]}
+    cls: dict[int, EmailClassification] = {}
+    if emails:
+        cls = {c.email_id: c for c in db.scalars(select(EmailClassification).where(
+            EmailClassification.email_id.in_([e.id for e in emails]), EmailClassification.is_current.is_(True)))}
+    return {"total": total, "items": [_email_summary(e, atts.get(e.id, []), cls.get(e.id)) for e in emails]}
 
 
 @admin.post("/gmail/poll", summary="Read new inbox e-mails now (one poll) - needs X-Admin-Key")
@@ -79,3 +97,19 @@ def parse_now(email_ref: str, reparse: bool = False, db: Session = Depends(get_d
     return {"email_ref": s.email_ref, "status": email.status, "parsed": s.parsed, "reused": s.reused,
             "skipped": s.skipped, "failed": s.failed, "reading_ms": s.ms, "saved_ms": s.saved_ms,
             "body_tables": s.body_tables, "errors": s.errors}
+
+
+@admin.post("/emails/{email_ref}/classify",
+            summary="Classify one e-mail as REMITTANCE / PTP / OUT_OF_SCOPE (M03) - needs X-Admin-Key")
+def classify_now(email_ref: str, db: Session = Depends(get_db)):
+    from app.classification.service import NotReadYet, classify_email, current_classification
+
+    email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == email_ref))
+    if email is None:
+        raise HTTPException(404, f"{email_ref} not found")
+    try:
+        classify_email(db, email)
+    except NotReadYet as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"email_ref": email.email_ref, "status": email.status,
+            "classification": _classification_summary(current_classification(db, email.id))}

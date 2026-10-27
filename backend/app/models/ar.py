@@ -108,7 +108,7 @@ class EmailAttachment(Base):
 class EmailClassification(Base):
     """What kind of e-mail it is, decided when the e-mail is read."""
     __tablename__ = "email_classification"
-    __table_args__ = (AR,)
+    __table_args__ = (Index("ix_email_classification_current", "email_id", "is_current"), AR)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     email_id: Mapped[int] = mapped_column(ForeignKey(f"{SCHEMA}.email_message.id", ondelete="CASCADE"))
@@ -117,7 +117,7 @@ class EmailClassification(Base):
     contains_ptp: Mapped[bool] = mapped_column(Boolean, default=False)
     out_of_scope_category: Mapped[str | None] = mapped_column(String(60))
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    method: Mapped[str | None] = mapped_column(String(20))  # rules | model | manual
+    method: Mapped[str | None] = mapped_column(String(20))  # rules | rules+model | manual
     reasons: Mapped[dict | None] = mapped_column(JSONB)
     is_current: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = _created()

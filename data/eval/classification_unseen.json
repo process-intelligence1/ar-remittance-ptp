@@ -1,0 +1,331 @@
+{
+ "_about": "Hand-written e-mails NOT taken from data/samples (new wording) - a check beyond the samples, because the M03 keyword lists were written while looking at the samples. expected: REMITTANCE | PTP | MIXED | OUT_OF_SCOPE:<CATEGORY>. History (be honest when quoting the results): batch 1 (U01-U26) first run 23/26 rules + model, its misses led to two general fixes; batch 2 (U27-U44) written afterwards, first run rules only 8/18, rules + model 15/18, then its missed phrases were added to the keyword lists. Both batches are therefore no longer truly unseen: add a new batch before quoting a fresh number.",
+ "cases": [
+  {
+   "id": "U01",
+   "expected": "REMITTANCE",
+   "subject": "Funds sent",
+   "body": "Hi, just to let you know the funds for invoices 90031120 and 90031121 (USD 4,210.00) left our account this morning. Ref TRF77120034.",
+   "batch": 1
+  },
+  {
+   "id": "U02",
+   "expected": "REMITTANCE",
+   "subject": "Settlement of your invoice UK-1043555",
+   "body": "Dear team, we have today settled invoice UK-1043555 for GBP 2,145.60 by BACS. Kind regards, Accounts",
+   "batch": 1
+  },
+  {
+   "id": "U03",
+   "expected": "REMITTANCE",
+   "subject": "Payment confirmation",
+   "body": "Please be advised that payment of EUR 9.870,00 was executed on 22.10.2026 for invoice 91005001.",
+   "attachments": [
+    {
+     "name": "confirmation.pdf",
+     "text": "PAYMENT CONFIRMATION Amount paid 9.870,00 EUR Invoice 91005001"
+    }
+   ],
+   "batch": 1
+  },
+  {
+   "id": "U04",
+   "expected": "REMITTANCE",
+   "subject": "Ueberweisung",
+   "body": "Guten Tag, wir haben die Rechnung 91004410 heute mit 1.250,00 EUR bezahlt. Gruesse",
+   "batch": 1
+  },
+  {
+   "id": "U05",
+   "expected": "REMITTANCE",
+   "subject": "Virement effectue",
+   "body": "Bonjour, nous avons procede au virement de 3 400,00 EUR pour la facture FA2026-09201. Cordialement",
+   "batch": 1
+  },
+  {
+   "id": "U06",
+   "expected": "REMITTANCE",
+   "subject": "Transferencia realizada",
+   "body": "Buenos dias, hemos transferido 2.300,00 EUR correspondientes a la factura FA2026-09311.",
+   "batch": 1
+  },
+  {
+   "id": "U07",
+   "expected": "REMITTANCE",
+   "subject": "Pagamento",
+   "body": "Prezados, realizamos o pagamento da fatura 90031900 no valor de 12.000,00 BRL hoje.",
+   "batch": 1
+  },
+  {
+   "id": "U08",
+   "expected": "REMITTANCE",
+   "subject": "お支払い完了のお知らせ",
+   "body": "請求書JP-26-002600の代金 540,000円 を本日お振込みいたしました。",
+   "batch": 1
+  },
+  {
+   "id": "U09",
+   "expected": "PTP",
+   "subject": "Re: Statement of account",
+   "body": "Hello, thanks for the statement. We expect to pay invoice MUM/2627/05111 (INR 2,40,000.00) by 20 November 2026 once our funds are released.",
+   "batch": 1
+  },
+  {
+   "id": "U10",
+   "expected": "PTP",
+   "subject": "Payment date for open items",
+   "body": "Hi, the open invoices 90031777 and 90031778 will be settled at the end of next week, on 6 Nov 2026.",
+   "batch": 1
+  },
+  {
+   "id": "U11",
+   "expected": "PTP",
+   "subject": "Ihre Zahlungserinnerung",
+   "body": "Sehr geehrte Damen und Herren, wir werden den offenen Betrag von 3.300,00 EUR fuer Rechnung 91005123 am 15.11.2026 ueberweisen.",
+   "batch": 1
+  },
+  {
+   "id": "U12",
+   "expected": "PTP",
+   "subject": "Echeancier facture FA2026-09400",
+   "body": "Bonjour, nous reglerons la facture FA2026-09400 en deux fois: 50% le 10/11/2026 et le solde le 10/12/2026.",
+   "batch": 1
+  },
+  {
+   "id": "U13",
+   "expected": "PTP",
+   "subject": "Pago pendiente",
+   "body": "Hola, pagaremos la factura FA2026-09500 de 4.100,00 EUR el 18/11/2026. Disculpen el retraso.",
+   "batch": 1
+  },
+  {
+   "id": "U14",
+   "expected": "PTP",
+   "subject": "Previsao de pagamento",
+   "body": "Prezados, a fatura 90031950 sera paga em 30/11/2026.",
+   "batch": 1
+  },
+  {
+   "id": "U15",
+   "expected": "PTP",
+   "subject": "お支払いについて",
+   "body": "請求書JP-26-002650につきましては、11月25日にお支払い予定です。",
+   "batch": 1
+  },
+  {
+   "id": "U16",
+   "expected": "MIXED",
+   "subject": "Partial payment and plan",
+   "body": "Hello, we have paid invoice 90031600 (USD 1,000.00) today. The other two invoices 90031601 and 90031602 will be paid on 30 November 2026.",
+   "batch": 1
+  },
+  {
+   "id": "U17",
+   "expected": "MIXED",
+   "subject": "Zahlung und Restzahlung",
+   "body": "Wir haben heute 2.000,00 EUR fuer Rechnung 91004500 ueberwiesen. Die Rechnung 91004501 begleichen wir am 20.11.2026.",
+   "batch": 1
+  },
+  {
+   "id": "U18",
+   "expected": "OUT_OF_SCOPE:MARKETING",
+   "subject": "Black Friday deals for finance teams",
+   "body": "Save 30% on our AP automation suite this month only. Click here to claim your offer. To stop receiving these emails, unsubscribe.",
+   "batch": 1
+  },
+  {
+   "id": "U19",
+   "expected": "OUT_OF_SCOPE:CUSTOMER_SERVICE",
+   "subject": "Wrong item delivered - order 55120",
+   "body": "Hello, we received the wrong item for invoice 90031444. Please arrange collection and send the correct part. This is a complaint.",
+   "batch": 1
+  },
+  {
+   "id": "U20",
+   "expected": "OUT_OF_SCOPE:SALES_INQUIRY",
+   "subject": "Price request",
+   "body": "Dear sales team, could you send your price list and lead time for 2,000 units of item ACM-7700?",
+   "batch": 1
+  },
+  {
+   "id": "U21",
+   "expected": "OUT_OF_SCOPE:GENERAL",
+   "subject": "Introduction",
+   "body": "Hello, I'd like to introduce our new account manager, Sam, who will be your contact from next month. Would you be free for a short introductory call?",
+   "batch": 1
+  },
+  {
+   "id": "U22",
+   "expected": "OUT_OF_SCOPE:VENDOR_INVOICE",
+   "subject": "Invoice 2026-7781 from Brightclean Facilities",
+   "body": "Dear Customer, please find attached our invoice for cleaning services in October. Amount due USD 2,300.00, payment due within 14 days.",
+   "attachments": [
+    {
+     "name": "INV-2026-7781.pdf",
+     "text": "INVOICE Bill to: Acme Industries Inc. Amount due USD 2,300.00 Net 14"
+    }
+   ],
+   "batch": 1
+  },
+  {
+   "id": "U23",
+   "expected": "OUT_OF_SCOPE:HR",
+   "subject": "Salary certificate request",
+   "body": "Dear HR team, could you please issue a salary certificate for my visa application?",
+   "batch": 1
+  },
+  {
+   "id": "U24",
+   "expected": "OUT_OF_SCOPE:BANK_NOTIFICATION",
+   "subject": "Balance alert",
+   "body": "Dear Client, the balance on your account ending 4410 is below your alert level. This is an automated message, please do not reply.",
+   "batch": 1
+  },
+  {
+   "id": "U25",
+   "expected": "REMITTANCE",
+   "subject": "FW: payment",
+   "body": "---------- Forwarded message ---------\nFrom: Treasury\nPayment of SGD 5,600.00 has been transferred for invoice JP-26-002700. Value date 21 Oct 2026.",
+   "batch": 1
+  },
+  {
+   "id": "U26",
+   "expected": "OUT_OF_SCOPE:CUSTOMER_SERVICE",
+   "subject": "Query on invoice 90031888",
+   "body": "Hi, the unit price on invoice 90031888 does not match our purchase order. Can your service team check and send a corrected invoice? We will not pay until this is resolved.",
+   "batch": 1
+  },
+  {
+   "id": "U27",
+   "expected": "REMITTANCE",
+   "subject": "Paid",
+   "body": "Morning, invoice 90031501 for USD 780.00 was paid via ACH yesterday. Thanks",
+   "batch": 2
+  },
+  {
+   "id": "U28",
+   "expected": "REMITTANCE",
+   "subject": "Proof of payment",
+   "body": "Please see the attached proof of payment for invoices SRV-100412 and SRV-100413.",
+   "attachments": [
+    {
+     "name": "proof_of_payment.pdf",
+     "text": "Transfer executed. Beneficiary: Acme Industries Inc. Amount USD 3,450.00. Reference SRV-100412 SRV-100413"
+    }
+   ],
+   "batch": 2
+  },
+  {
+   "id": "U29",
+   "expected": "REMITTANCE",
+   "subject": "Zahlungseingang folgt",
+   "body": "Hallo, die Rechnung 91004777 ueber 980,00 EUR wurde heute von uns angewiesen.",
+   "batch": 2
+  },
+  {
+   "id": "U30",
+   "expected": "REMITTANCE",
+   "subject": "Paiement facture FA2026-09333",
+   "body": "Bonjour, la facture FA2026-09333 a ete payee ce jour par virement de 1 200,00 EUR.",
+   "batch": 2
+  },
+  {
+   "id": "U31",
+   "expected": "REMITTANCE",
+   "subject": "Comprobante",
+   "body": "Adjuntamos el comprobante de la transferencia de 5.000,00 EUR por la factura FA2026-09444.",
+   "batch": 2
+  },
+  {
+   "id": "U32",
+   "expected": "REMITTANCE",
+   "subject": "送金のご案内",
+   "body": "いつもお世話になっております。請求書JP-26-002710の代金を本日送金いたしました。金額：320,000円",
+   "batch": 2
+  },
+  {
+   "id": "U33",
+   "expected": "PTP",
+   "subject": "Re: Overdue invoices",
+   "body": "Hi, apologies - our payment run is on Friday 6 November and invoices 90031530 and 90031531 are included in it.",
+   "batch": 2
+  },
+  {
+   "id": "U34",
+   "expected": "PTP",
+   "subject": "Payment next week",
+   "body": "Hello, you can expect payment of INR 4,50,000.00 for MUM/2627/05300 next week, by 5 November 2026.",
+   "batch": 2
+  },
+  {
+   "id": "U35",
+   "expected": "PTP",
+   "subject": "Zahlung Rechnung 91004888",
+   "body": "Guten Tag, die Zahlung fuer Rechnung 91004888 erfolgt voraussichtlich am 12.11.2026.",
+   "batch": 2
+  },
+  {
+   "id": "U36",
+   "expected": "PTP",
+   "subject": "Reglement prevu",
+   "body": "Bonjour, le reglement de la facture FA2026-09555 est prevu pour le 20/11/2026.",
+   "batch": 2
+  },
+  {
+   "id": "U37",
+   "expected": "PTP",
+   "subject": "Fecha de pago",
+   "body": "Buenos dias, la factura FA2026-09666 se pagara el 25/11/2026.",
+   "batch": 2
+  },
+  {
+   "id": "U38",
+   "expected": "PTP",
+   "subject": "Pagamento programado",
+   "body": "Prezados, o pagamento da fatura 90031960 esta programado para 28/11/2026.",
+   "batch": 2
+  },
+  {
+   "id": "U39",
+   "expected": "MIXED",
+   "subject": "Payment update",
+   "body": "Hello, invoice UK-1043800 (GBP 900.00) was paid today by BACS. Invoice UK-1043801 will follow on 15 November 2026.",
+   "batch": 2
+  },
+  {
+   "id": "U40",
+   "expected": "OUT_OF_SCOPE:MARKETING",
+   "subject": "Your free trial is waiting",
+   "body": "Start your 14-day free trial of our cash forecasting tool today. Limited time offer. Manage your email preferences or unsubscribe here.",
+   "batch": 2
+  },
+  {
+   "id": "U41",
+   "expected": "OUT_OF_SCOPE:CUSTOMER_SERVICE",
+   "subject": "Late delivery",
+   "body": "Hello, our order for invoice 90031999 still has not arrived. Can your service team check the tracking and let us know?",
+   "batch": 2
+  },
+  {
+   "id": "U42",
+   "expected": "OUT_OF_SCOPE:VENDOR_INVOICE",
+   "subject": "Rechnung RE-2026-5512",
+   "body": "Sehr geehrte Damen und Herren, anbei unsere Rechnung RE-2026-5512 ueber 1.450,00 EUR, zahlbar innerhalb von 30 Tagen.",
+   "batch": 2
+  },
+  {
+   "id": "U43",
+   "expected": "OUT_OF_SCOPE:HR",
+   "subject": "Leave request",
+   "body": "Dear HR team, I would like to request annual leave from 1 to 5 December. Thank you.",
+   "batch": 2
+  },
+  {
+   "id": "U44",
+   "expected": "OUT_OF_SCOPE:BANK_NOTIFICATION",
+   "subject": "Scheduled maintenance",
+   "body": "Dear Client, online banking will be unavailable on Sunday from 02:00 to 04:00 due to scheduled maintenance. This is an automated message.",
+   "batch": 2
+  }
+ ]
+}

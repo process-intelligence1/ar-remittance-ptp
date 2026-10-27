@@ -2,3 +2,9 @@
 -r requirements.txt
 pytest==9.1.1
 httpx==0.28.1  # needed by FastAPI's TestClient (API tests)
+# Classification model TRAINING (M03, scripts.train_classifier / scripts.evaluate). The API predicts
+# with numpy from app/classification/model.npz, so these are not in the image (~50 MB compressed).
+scikit-learn==1.9.1
+scipy==1.18.1
+joblib==1.6.0
+threadpoolctl==3.7.0

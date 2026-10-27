@@ -67,7 +67,8 @@ one plain sentence before running it, and summarise results in plain language.
 ## Data
 - data/seed/*.xlsx  - SAP reference data (BSID 4,840 open items, 71 customers, 6 company codes).
 - data/samples/emails/<CODE>/ - 234 sample e-mails (body.txt + attachments). Folder prefix = scenario:
-  R = remittance, P = PTP, P..R = both, O = out of scope.
+  R = remittance, P = PTP, P06 = payment + promise in one e-mail, P03R/P05R = the payment that follows
+  an earlier PTP (P03/P05; no new promise in the text), O = out of scope (O01-O07 = the 7 categories).
 
 ## Plan status
 - Day 1 done: tools installed, repo created, local database created.
@@ -83,7 +84,7 @@ one plain sentence before running it, and summarise results in plain language.
 - M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
-  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (275 pass).
+  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (366 pass).
   Whole inbox is processed (NO date cut-off) except rule "ignored_senders" = ONLY the domains
   github.com, google.com, accounts.google.com, microsoft.com, azure.com, anthropic.com, claude.ai,
   claude.com (+ subdomains); NO address patterns (noreply@ ERP senders send real remittances, e.g.
@@ -97,4 +98,13 @@ one plain sentence before running it, and summarise results in plain language.
   aligned text). Reuse by SHA-256 (parse_reused). 120 s per-document deadline. Docker image has
   Tesseract + 7 languages; workflow keeps only the 3 newest GHCR versions (500 MB free limit).
   OCR in Azure: only 1-2 test files on the API container until the M06 worker.
-- Next: M03 classification, then M04-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+- M03 done (classification) - see docs/modules/M03_classification.md and
+  docs/reports/M03_classification_report.md. app/classification/: keyword rules (EN/DE/FR/ES/PT/JA,
+  lexicons.py) + small TF-IDF/logistic-regression model asked below 70 % confidence. Settings in
+  ar.rule_config "classification". Samples 234/234 (rules, and rules + model cross-validated); new
+  hand-written wording first try 15/18 (data/eval/classification_unseen.json - both batches since used
+  for fixes). scikit-learn is LAPTOP-ONLY (requirements-dev.txt, training); the image predicts with numpy
+  from app/classification/model.npz because GHCR is at ~491/500 MB. Retrain: scripts.train_classifier.
+  scripts.classify; POST /api/admin/emails/{ref}/classify; Gmail labels AR-Remittance/AR-PTP/AR-OutOfScope
+  only where Gmail is polled (Azure). Tests must never reach real Gmail (conftest turns POLLER_ENABLED on).
+- Next: M04 extraction, then M05-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.

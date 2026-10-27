@@ -31,6 +31,20 @@ INVOICE_MATCH = {
          "label": "No invoice-number match"},
     ],
 }
+CLASSIFICATION = {
+    "contains_threshold": 3,       # points needed for "contains a remittance" / "contains a promise"
+    "out_of_scope_threshold": 3,   # points an out-of-scope category needs to win
+    "evidence_bonus": 1,           # invoice numbers / amounts / payment references found
+    "known_sender_bonus": 1,       # sender is a customer contact in ADR6
+    "future_date_bonus": 1,        # a date after the business date next to promise wording
+    "model_below_confidence": 70,  # rules less sure than this -> the learned model is asked too
+    "model_min_probability": 0.60, # the model's answer is used only when it is at least this sure
+    "model_min_chars": 25,         # fewer letters/digits (subject, body, attachment text) -> nothing to read, model not asked
+    "document_about_ar_categories": 3,  # remittance + promise + this many out-of-scope kinds = a document ABOUT AR
+    "both_label": "PTP",           # label of an e-mail with a remittance AND a promise
+    "gmail_labels": {"REMITTANCE": "AR-Remittance", "PTP": "AR-PTP", "OUT_OF_SCOPE": "AR-OutOfScope"},
+}
+
 FAST_PATH_DESCRIPTION = ("EXACT invoice match + BSID open + same currency + amount within tolerance = 92%; "
                          "EXACT + amount missing = 91% (sets confidence directly).")
 
@@ -39,6 +53,11 @@ DEFAULT_RULES: dict[str, tuple[dict, str]] = {
         IGNORED_SENDERS,
         "System sender DOMAINS (incl. sub-domains) whose e-mails are NOT stored: only an audit entry and the "
         "Gmail label AR-Ignored. No address patterns - automated senders can send genuine remittances.",
+    ),
+    "classification": (
+        CLASSIFICATION,
+        "E-mail classification (M03): keyword points needed for remittance / promise / out-of-scope, "
+        "bonuses for invoice numbers, known senders and future dates, when the learned model is asked.",
     ),
     "scoring_weights": (
         {"invoice_match": 0.35, "amount_alignment": 0.30, "sender_company": 0.10,
