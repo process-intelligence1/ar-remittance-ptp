@@ -88,4 +88,10 @@ one plain sentence before running it, and summarise results in plain language.
   (not stored; audit EMAIL_IGNORED + Gmail label AR-Ignored). scripts.purge_ignored removes old ones.
   Only Azure polls (POLLER_ENABLED=true there; laptop needs --force). /api/admin/* needs header
   X-Admin-Key (Key Vault "admin-api-key"; empty = admin off). Sample sends dated now, X-Original-Date kept.
-- Next: M02 document reading/OCR, then M03-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+- M02 done (document reading + OCR) - see docs/modules/M02_document_reading.md and
+  docs/reports/M02_samples_report.md (234/234 samples parse). app/documents/: PDF text layer or OCR
+  per page (mixed), images, DOCX, XLSX (data_only, ISO dates), CSV, HTML; body tables (HTML or
+  aligned text). Reuse by SHA-256 (parse_reused). 120 s per-document deadline. Docker image has
+  Tesseract + 7 languages; workflow keeps only the 3 newest GHCR versions (500 MB free limit).
+  OCR in Azure: only 1-2 test files on the API container until the M06 worker.
+- Next: M03 classification, then M04-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.

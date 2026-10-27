@@ -64,9 +64,16 @@ class Settings(BaseSettings):
     azure_storage_container: str = "ar-files"
     azure_client_id: str = ""  # client id of the managed identity used for Blob access (Azure only)
 
-    # --- OCR -------------------------------------------------------------------
-    ocr_engine: str = "tesseract"  # tesseract | azure_di
-    tesseract_cmd: str = ""
+    # --- Document reading / OCR (M02) --------------------------------------------
+    ocr_engine: str = "tesseract"  # tesseract | azure_di (Document Intelligence F0 - off by default)
+    tesseract_cmd: str = ""        # laptop: path to tesseract.exe; container: on PATH
+    doc_timeout_s: int = 120       # per document; then FAILED "timeout"
+    ocr_dpi: int = 300             # scanned PDF pages are rendered at this resolution
+    ocr_max_side_px: int = 4000    # larger images are scaled down first (memory)
+    pdf_max_pages: int = 50        # pages read per PDF (the rest is noted as skipped)
+    html_max_bytes: int = 2_000_000  # HTML attachments larger than this are not parsed
+    azure_di_endpoint: str = ""    # only used when OCR_ENGINE=azure_di
+    azure_di_key: str = ""
 
     # --- Front-end origin allowed to call the API (CORS) -------------------------
     cors_origins: str = "http://localhost:5173"

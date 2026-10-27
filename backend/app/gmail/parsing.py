@@ -66,6 +66,7 @@ class ParsedEmail:
     body_text: str
     headers: dict[str, str]
     attachments: list[ParsedAttachment] = field(default_factory=list)
+    body_html: str | None = None  # HTML part, if any (its tables are read in M02)
 
 
 @dataclass
@@ -115,12 +116,17 @@ def _parse_date(value: str | None) -> datetime | None:
 
 
 # --------------------------------------------------------------------------- body + attachments
-def _html_to_text(html: str) -> str:
-    html = re.sub(r"(?is)<(script|style).*?</\1>", "", html)
-    html = re.sub(r"(?i)<br\s*/?>|</p>|</div>|</tr>|</li>|</h\d>", "\n", html)
-    html = re.sub(r"(?s)<[^>]+>", " ", html)
+def html_to_text(html: str) -> str:
+    """Readable text from HTML. Table cells are separated by a tab and each row is one line, so
+    "invoice <td> amount" stays together and the columns can be found again (M02)."""
+    html = re.sub(r"(?is)<(script|style|head).*?</\1>", "", html)
+    html = re.sub(r"(?i)</t[dh]\s*>", "\t", html)
+    html = re.sub(r"(?i)<br\s*/?>|</p>|</div>|</tr>|</li>|</h\d>|</table>", "\n", html)
+    html = re.sub(r"(?s)<[^>]+>", "", html)
     text = unescape(html)
-    text = re.sub(r"[ \t\xa0]+", " ", text)
+    text = re.sub(r"[ \xa0]+", " ", text)
+    text = re.sub(r" *\t[ \t]*", "\t", text)
+    text = "\n".join(line.strip(" ").rstrip("\t") for line in text.split("\n"))
     return re.sub(r"\n\s*\n\s*\n+", "\n\n", text).strip()
 
 
@@ -157,7 +163,7 @@ def parse_raw_email(raw: bytes) -> ParsedEmail:
             ext = mimetypes.guess_extension(ctype) or ""
             attachments.append(ParsedAttachment(f"inline{len(attachments) + 1}{ext}", ctype, data, is_inline=True))
 
-    body = "\n".join(plain).strip() if plain else _html_to_text("\n".join(html))
+    body = "\n".join(plain).strip() if plain else html_to_text("\n".join(html))
     headers = {k.lower(): str(v) for k, v in msg.items()}
     return ParsedEmail(
         rfc_message_id=(msg.get("Message-ID") or "").strip() or None,
@@ -168,6 +174,7 @@ def parse_raw_email(raw: bytes) -> ParsedEmail:
         body_text=body.replace("\r\n", "\n"),
         headers=headers,
         attachments=attachments,
+        body_html="\n".join(html) or None,
     )
 
 

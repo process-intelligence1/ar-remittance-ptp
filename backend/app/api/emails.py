@@ -23,10 +23,16 @@ def _email_summary(e: EmailMessage, atts: list[EmailAttachment]) -> dict:
         "gmail_id": e.gmail_id, "sender_email": e.sender_email, "sender_name": e.sender_name,
         "from_email": e.from_email, "is_forwarded": e.is_forwarded, "sender_domain": e.sender_domain,
         "subject": e.subject, "received_at": e.received_at, "business_date": e.business_date,
-        "status": e.status, "error": e.error, "created_at": e.created_at,
+        "status": e.status, "error": e.error, "created_at": e.created_at, "language": e.language,
+        "body_tables": len((e.body_layout or {}).get("tables", [])),
         "attachments": [
             {"id": a.id, "parent_id": a.parent_id, "depth": a.depth, "filename": a.filename,
-             "mime_type": a.mime_type, "size_bytes": a.size_bytes, "sha256": a.sha256, "is_inline": a.is_inline}
+             "mime_type": a.mime_type, "size_bytes": a.size_bytes, "sha256": a.sha256, "is_inline": a.is_inline,
+             # M02 parse results - metadata only (no text) until the login exists
+             "parse_status": a.parse_status, "parse_method": a.parse_method, "parse_reused": a.parse_reused,
+             "parse_ms": a.parse_ms, "page_count": a.page_count, "chars": len(a.text_content or ""),
+             "ocr_confidence": a.ocr_confidence, "language": a.language,
+             "tables": len((a.layout or {}).get("tables", [])), "parse_error": a.parse_error}
             for a in atts
         ],
     }
@@ -60,3 +66,16 @@ def poll_now(max_messages: int = Query(50, ge=1, le=200), db: Session = Depends(
             "skipped_outbound": r.skipped_outbound, "ignored": r.ignored, "failed": r.failed,
             "email_refs": r.email_refs,
             "errors": r.errors}
+
+
+@admin.post("/emails/{email_ref}/parse", summary="Read the body and attachments of one e-mail (M02) - needs X-Admin-Key")
+def parse_now(email_ref: str, reparse: bool = False, db: Session = Depends(get_db)):
+    from app.documents.service import parse_email
+
+    email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == email_ref))
+    if email is None:
+        raise HTTPException(404, f"{email_ref} not found")
+    s = parse_email(db, email, reparse=reparse)
+    return {"email_ref": s.email_ref, "status": email.status, "parsed": s.parsed, "reused": s.reused,
+            "skipped": s.skipped, "failed": s.failed, "reading_ms": s.ms, "saved_ms": s.saved_ms,
+            "body_tables": s.body_tables, "errors": s.errors}

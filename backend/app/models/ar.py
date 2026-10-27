@@ -67,6 +67,7 @@ class EmailMessage(Base):
     business_date: Mapped[date | None] = mapped_column(Date)
     body_text: Mapped[str | None] = mapped_column(Text)
     body_text_clean: Mapped[str | None] = mapped_column(Text)  # quoted replies removed
+    body_layout: Mapped[dict | None] = mapped_column(JSONB)  # tables found in the body (HTML or aligned text)
     raw_uri: Mapped[str | None] = mapped_column(String(500))  # where the .eml is stored
     sha256: Mapped[str | None] = mapped_column(String(64))
     language: Mapped[str | None] = mapped_column(String(10))
@@ -78,7 +79,7 @@ class EmailMessage(Base):
 class EmailAttachment(Base):
     """A file attached to an e-mail (files inside a ZIP point to the ZIP via parent_id)."""
     __tablename__ = "email_attachment"
-    __table_args__ = (AR,)
+    __table_args__ = (Index("ix_email_attachment_sha256", "sha256"), AR)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     email_id: Mapped[int] = mapped_column(ForeignKey(f"{SCHEMA}.email_message.id", ondelete="CASCADE"))
@@ -91,7 +92,12 @@ class EmailAttachment(Base):
     is_inline: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))  # e.g. logo in the body
     depth: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))  # 0 = attached, 1+ = inside a ZIP
     page_count: Mapped[int | None] = mapped_column(Integer)
-    parse_method: Mapped[str | None] = mapped_column(String(20))  # text | ocr | native_table
+    parse_method: Mapped[str | None] = mapped_column(String(20))  # text | ocr | mixed | docx | spreadsheet | csv | container | unsupported
+    parse_status: Mapped[str] = mapped_column(String(20), default="PENDING", server_default=text("'PENDING'"))  # PENDING | PARSED | FAILED | SKIPPED
+    parse_error: Mapped[str | None] = mapped_column(Text)
+    parse_reused: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))  # copied from an identical file (same SHA-256)
+    parse_ms: Mapped[int | None] = mapped_column(Integer)  # time the original parse took
+    parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     text_content: Mapped[str | None] = mapped_column(Text)
     layout: Mapped[dict | None] = mapped_column(JSONB)  # words/tables with page + bounding boxes
     ocr_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
