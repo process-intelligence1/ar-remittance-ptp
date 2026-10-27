@@ -73,5 +73,8 @@ one plain sentence before running it, and summarise results in plain language.
   Code deploys: push to main -> .github/workflows/deploy.yml (OIDC, environment "demo", no reviewer:
   GitHub Free). Infra deploys: .\infra\deploy.ps1 [-WhatIf] (rotates DB password each run).
   GHCR pull token must be a CLASSIC PAT (read:packages), stored only in Key Vault by the owner.
-- Next: Gmail reader, document reading/OCR, classification, extraction, matching, screens.
-  MVP target 9 Nov 2026.
+- M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
+  Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
+  (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
+  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (258 pass).
+- Next: M02 document reading/OCR, then M03-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
