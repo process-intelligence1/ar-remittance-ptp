@@ -125,20 +125,59 @@ one plain sentence before running it, and summarise results in plain language.
   without pushing. Clean-up keeps the 3 newest versions + whatever Azure runs. Deploys wait for the
   owner's approval (environment "demo" reviewer). Known, not fixed: OpenCV minAreaRect returns -90..0 here,
   so M02 deskew skips some tilted scans (e.g. R19-0114 at 0.24 deg, R29-0161).
-- M04 done (extraction) - see docs/modules/M04_extraction.md and docs/reports/M04_extraction_report.md.
+- M04 done (extraction, deployed fb3168b) - see docs/modules/M04_extraction.md, docs/reports/M04_extraction_report.md.
   app/extraction/: ar.extraction (header) + ar.extraction_line (per invoice / instalment, evidence JSON);
-  normalise_ref() in refs.py is THE invoice-number normalisation for M05. Own date parser (incl. Japanese
-  eras, relative promise dates vs e-mail date). Invoice currency only when stated; payment currency + FX
-  rate kept apart, nothing converted. Held-out third (every 3rd sample per scenario) reported separately:
-  strict hit 80 % (target 85 % missed - deliberate part-payments/exception scenarios R02 R04 R06 R16 R26),
-  number in BSID 95.5 %, lines = stated total 96 %. scripts.extract [--reclean]; POST /api/admin/emails/{ref}/extract.
-  Also fixed: M01 reply cleaner no longer cuts instalment lists; fold(keep_spaces=True) for aligned labels.
-- M05 done (matching) - see docs/modules/M05_matching.md and docs/reports/M05_matching_report.md.
-  app/matching/: customers (INVOICE > SENDER_ADDRESS > CUSTOMER_NUMBER > IBAN > SENDER_DOMAIN > NAME, KNVP
-  RG payers), invoice_match (EXACT/NEAR/NONE), scoring (confidence = max(fast path, formula),
-  confidence_source), unreferenced (0.5 %, <= 6 invoices, always review), duplicates (same kind only).
-  ar.work_item one per invoice (+ match_candidate, ptp_commitment); ENT- ids from ar.entry_id_seq.
-  Samples: 64 % Auto / 22 % Review / 4 % Exception / 6 % Duplicate; customer identified 215/217.
-  Review reasons incl. 'invoice of another customer than the sender' (third-party payment). scripts.match
-  [--rematch]; POST /api/admin/emails/{ref}/match. Names via difflib (rapidfuzz only if names get missed).
+  normalise_ref() in refs.py is THE invoice-number normalisation (used by M05). Own date parser (EN/DE/FR/
+  ES/PT/JA, Japanese eras, relative promise dates vs the e-mail date). Invoice currency only when stated;
+  payment currency + FX rate kept apart, nothing converted. scripts.extract [--reclean];
+  POST /api/admin/emails/{ref}/extract. Evaluated with a HELD-OUT third (every 3rd sample per scenario, never
+  studied): referenced remittance lines - number in BSID 95.5 % (dev 95.7), strict hit 80.2 % (dev 79.7;
+  target 85 % MISSED), hit incl. deliberate part-payments 91.9 %, lines = stated total 95.9 % of held-out
+  remittances (dev 88.3); without the 5 no-match scenarios (R02 R04 R06 R16 R26) strict hit 84.8 % held-out.
+  60/60 PTP lines have a promise date. Also fixed: M01 reply cleaner cut instalment lists; M03 fold() collapsed
+  aligned "Label   value" spacing (fold(keep_spaces=True)).
+- M05 done (matching, deployed bacaad3) - see docs/modules/M05_matching.md, docs/reports/M05_matching_report.md.
+  app/matching/: customers (INVOICE > SENDER_ADDRESS > CUSTOMER_NUMBER > IBAN > SENDER_DOMAIN > NAME; KNVP RG
+  payers), invoice_match (EXACT/NEAR/NONE), scoring (confidence = max(fast path, formula), stored with
+  confidence_source + formula_confidence), unreferenced (0.5 %, <= 6 invoices, always review), duplicates
+  (values within 7 days or same attachment; same row kind only). ar.work_item one per invoice (+ match_candidate,
+  ptp_commitment); ENT- ids from ar.entry_id_seq. scripts.match [--rematch]; POST /api/admin/emails/{ref}/match.
+  Samples (504 rows): dev 65 % Auto / 22 % Review / 4 % Exception / 5 % Duplicate; HELD-OUT 61 % / 23 % / 4 % /
+  10 %. Customer identified 215/217; agrees with ADR6 sender 97.6 %, quoted customer no. 98.8 %, owner of exactly
+  matched invoices 99.5 %. P03-0193 JP-26-002271 -> 102419 SGD 8,300 (92 % FAST_PATH, Auto). Re-sent sample ->
+  DUPLICATE. Fast path applied to 361 rows: formula higher for 283, fast-path value used for 78.
 - Next: M06 pipeline + worker, then M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+
+## Open issues (as of 28 Oct 2026)
+Known weak spots and deferred work - check here before planning a module.
+- Accuracy / known weak scenarios
+  - M04 strict hit 80 % < 85 % target: mostly deliberate part-payments (R03, R07, R27, P08 instalments) and
+    exception scenarios where no line can match BSID (R02 amount column empty, R04 / R16 unknown numbers, R06
+    other currency, R26). Real reading errors left: OCR misreads in scans (R21-0123, R26-0149 totals; R03-0034
+    5947.10 for 947.10; R19-0115 / R26-0149 numbers) - M05 sends them to review.
+  - Not in any sample, proven by unit tests only: FX rates, REM- references, relative promise dates, credit-note
+    formats, IBAN payers (KNBK), NAME customer matching (never needed on the samples).
+  - M03: both hand-written "unseen" batches were used for fixes - no fresh unseen number exists (first try was
+    15/18). Add a new batch before quoting one. Spanish reply headers are not stripped by mail-parser-reply.
+  - M02 deskew: OpenCV minAreaRect returns -90..0 here, so some tilted scans are not straightened (R19-0114,
+    R29-0161). Owner decided: keep OpenCV, do not change for now.
+  - M05: R19-0113 / R19-0115 customer not identified (unknown sender domains); payer / currency cluster flags
+    stay blank until 3 past rows exist (history comes with M11); amounts in another currency score 0 for amount
+    (nothing converted - TCURR conversion is planned for M07 KPIs only).
+- Deferred to later modules
+  - M06: run read -> classify -> extract -> match automatically on Azure (so far none of M03-M05 has run on Azure
+    data - only 3 Azure e-mails are even read); run `scripts.extract --reclean` once there; the manual Azure
+    classify check (admin key) was skipped by the owner.
+  - M07: work-item API with filters / KPIs, USD conversion via TCURR, allowed actions per role.
+  - M08: Knowledge Base page must use the recalculated worked example (NONE 56.4 % / NEAR 83.7 % / EXACT 95.3 %
+    = max(fast path 92, formula)) - the prototype's 85.34 % does not follow raw / 0.90; fast-path text =
+    "max(fast-path value, formula)". Demo login needs a demo access code (Key Vault) until M12.
+  - M09: Confirm & Update SAP, Mark as Non-Duplicate (R25 "CORRECTED" advices are flagged DUPLICATE on purpose).
+  - M10: link P03R / P05R payments to the earlier promise (PTP kept); ar.ptp_commitment rows are already OPEN.
+  - M11: history set + live set; snapshots.
+- Owner to-dos
+  - Gmail token (Google app in TESTING mode) expires ~3 Nov 2026: re-run scripts.gmail_auth + upload, or publish
+    the app (M08 privacy/terms pages).
+  - Revoke the old GitHub classic PAT (former GHCR pull token) under Developer settings -> Tokens (classic).
+  - Three empty Gmail labels (AR-Remittance / AR-PTP / AR-OutOfScope) were created by an early M03 test run;
+    harmless - Azure will use them.
