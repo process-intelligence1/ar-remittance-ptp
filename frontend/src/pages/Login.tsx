@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { waitForServer, type ServerState } from "../auth/warmup";
 import type { DemoUser } from "../data";
@@ -31,6 +31,9 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loaded = useRef(false);
+  const [params] = useSearchParams();
+  const next = params.get("next");
+  const target = next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : "/"; // in-app addresses only
   const ended = import.meta.env.VITE_LIVE_ENDED === "true";
 
   // As soon as the screen opens: wake the API in the background (it sleeps when idle).
@@ -53,7 +56,7 @@ export default function Login() {
   }, [state, ds]);
 
   if (ended) return <LiveEnded />;
-  if (session) return <Navigate to="/" replace />;
+  if (session) return <Navigate to={target} replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

@@ -210,7 +210,7 @@ one plain sentence before running it, and summarise results in plain language.
   placeholder, /api/changes polling (visible tab only), LIVE_ENDED page. Hosting = GitHub Pages (.github/workflows/frontend.yml:
   root = pages/ landing + privacy.html + terms.html, /live/ = live edition; API URL from repo variable API_BASE_URL). Backend:
   /api/emails behind login, PDF page-image endpoint, CORS origin https://process-intelligence1.github.io (Bicep parameter, not
-  yet deployed). Tests: 20 front-end + 563 back-end. Checked locally in the browser (login, dashboard, queue, detail with
+  yet deployed). Idle: polling pauses after 5 min ("Paused - click to refresh"), auto sign-out after 60 min, hash routes + login?next= keep shared links / F5 working. Tests: 27 front-end + 563 back-end. Checked locally in the browser (login, dashboard, queue, detail with
   highlighted PDF values). To do for "done": enable Pages, set variable API_BASE_URL, deploy CORS, push, check on the live site.
 - Plan change 29 Oct: action "Confirm & Extract to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
 - Next: finish M08 (publish + live check), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).

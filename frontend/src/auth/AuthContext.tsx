@@ -18,7 +18,7 @@ interface AuthValue {
   session: Session | null;
   expiredMessage: string | null;
   login: (user: string, accessCode: string) => Promise<void>;
-  logout: () => void;
+  logout: (message?: string) => void;
   ds: DataSource;
 }
 
@@ -65,7 +65,7 @@ export function AuthProvider({ ds, children }: { ds: DataSource; children: React
     [ds],
   );
 
-  const value = useMemo(() => ({ session, expiredMessage, login, logout: () => clear(null), ds }), [session, expiredMessage, login, clear, ds]);
+  const value = useMemo(() => ({ session, expiredMessage, login, logout: (message?: string) => clear(message ?? null), ds }), [session, expiredMessage, login, clear, ds]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

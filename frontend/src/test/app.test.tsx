@@ -231,3 +231,91 @@ it("signing out returns to the login screen", async () => {
   expect(await screen.findByLabelText("Access code")).toBeInTheDocument();
   expect(sessionStorage.getItem("ar_session")).toBeNull();
 });
+
+describe("idle handling", () => {
+  it("pauses live updates after 5 minutes without activity, shows 'Paused - click to refresh', and a click resumes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    signedIn();
+    const changes = vi.fn(async () => ({ server_time: "", next_since: "2026-10-12T00:00:00Z", new_work_items: { count: 0, ids: [] }, updated_work_items: { count: 0, ids: [] }, new_emails: 0, changed: false }));
+    const workItems = vi.fn(fakeDs().workItems);
+    renderApp(fakeDs({ changes, workItems }), "#/queue");
+    await screen.findByText("ENT-000001");
+    expect(screen.queryByText("Paused - click to refresh")).not.toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60_000 + 10_000); });
+    const banner = await screen.findByText("Paused - click to refresh");
+    const callsWhenPaused = changes.mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(changes.mock.calls.length).toBe(callsWhenPaused); // no polling while paused
+    window.dispatchEvent(new Event("mousemove"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(screen.getByText("Paused - click to refresh")).toBeInTheDocument(); // movement alone does not resume
+    const before = workItems.mock.calls.length;
+    fireEvent.click(banner);
+    expect(screen.queryByText("Paused - click to refresh")).not.toBeInTheDocument();
+    await waitFor(() => expect(workItems.mock.calls.length).toBeGreaterThan(before)); // refreshed
+  });
+
+  it("signs the user out after 60 minutes without activity, with a message", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    signedIn();
+    renderApp(fakeDs(), "#/queue");
+    await screen.findByText("ENT-000001");
+    await act(async () => { await vi.advanceTimersByTimeAsync(59 * 60_000); });
+    expect(sessionStorage.getItem("ar_session")).not.toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2 * 60_000); });
+    expect(await screen.findByText("You were signed out after 60 minutes without activity.")).toBeInTheDocument();
+    expect(sessionStorage.getItem("ar_session")).toBeNull();
+  });
+
+  it("activity postpones the sign-out", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    signedIn();
+    renderApp(fakeDs(), "#/queue");
+    await screen.findByText("ENT-000001");
+    for (let i = 0; i < 4; i++) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(20 * 60_000); });
+      window.dispatchEvent(new Event("keydown"));
+    }
+    expect(sessionStorage.getItem("ar_session")).not.toBeNull(); // 80 minutes passed, never 60 idle
+  });
+});
+
+describe("routes survive a refresh or a shared link", () => {
+  it("a deep link opens the right screen and record, again after a simulated refresh (hash routing, no server routes)", async () => {
+    signedIn();
+    const detail = vi.fn(async () => { throw new Error("detail not needed"); });
+    for (const hash of ["#/audit", "#/kb", "#/queue?record=ENT-000001"]) {
+      const view = renderApp(fakeDs({ workItem: detail }), hash); // a fresh page load on that address
+      await waitFor(() => expect(view.container.querySelector(hash.includes("audit") ? "#page-audit" : hash.includes("kb") ? "#page-kb" : "#page-queue")).not.toBeNull());
+      if (hash.includes("record=")) expect(await screen.findByRole("dialog", { name: "Record Detail" })).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it("uses hash routes only, so GitHub Pages never needs a server route", () => {
+    signedIn();
+    renderApp(fakeDs(), "#/queue");
+    const link = screen.getByRole("link", { name: /Audit Trail/ });
+    expect(link.getAttribute("href")).toBe("#/audit");
+  });
+});
+
+describe("shared links", () => {
+  it("a signed-out visitor of a shared link signs in and lands on that record", async () => {
+    const ds = fakeDs({ workItem: async () => { throw new Error("detail not needed"); } });
+    renderApp(ds, "#/queue?record=ENT-000001"); // someone opens a shared link without a session
+    const code = await screen.findByLabelText("Access code");
+    expect(window.location.hash).toContain("/login?next=");
+    await waitFor(() => expect(code).toBeEnabled());
+    fireEvent.change(code, { target: { value: "ok" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("dialog", { name: "Record Detail" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/queue?record=ENT-000001");
+  });
+
+  it("ignores a next= address that leaves the app", async () => {
+    signedIn();
+    renderApp(fakeDs(), "#/login?next=//evil.example");
+    expect(await screen.findByTestId("kpi-total")).toBeInTheDocument(); // normal landing page
+  });
+});

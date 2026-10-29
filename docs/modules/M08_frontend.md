@@ -29,6 +29,12 @@ All data and all actions go through one `DataSource` interface (`types.ts`); scr
   "max(fast-path value, formula)", "Confirm & Extract to Excel", one inbox instead of three mailboxes.
 - **Demo Control** - placeholder (M11).
 - Live updates: `/api/changes` polled every 17 s **only while the tab is visible**; new rows reload the lists and show a toast.
+- **Idle handling** (`hooks/useIdle.ts`): after 5 minutes without activity (mouse, keys, scroll, touch) polling pauses and a banner
+  "Paused - click to refresh" appears; only a click on it resumes (and reloads the data). After 60 minutes without activity the
+  user is signed out with the message "You were signed out after 60 minutes without activity." (token life is 10 h on top).
+- **Links and refresh**: hash routing (`#/queue?record=ENT-...`), so F5 or a shared link never needs a server route on GitHub
+  Pages (no 404). A signed-out visitor is sent to `#/login?next=<address>` and lands on that address after signing in (only
+  in-app addresses are accepted).
 
 ## Backend changes in M08
 - `/api/emails` (metadata) now needs the demo login (it listed real senders and subjects).
@@ -43,9 +49,9 @@ Workflow `.github/workflows/frontend.yml` tests, builds and publishes: root = `p
 variable `LIVE_ENDED=true` switches `/live/` to the "live system has ended" page. M15 adds the demo edition at the root.
 
 ## Tests
-Front-end: 20 (Vitest + Testing Library): warm-up logic and login screen messages, sign-in / wrong code, live-ended page, data
+Front-end: 27 (Vitest + Testing Library): warm-up logic and login screen messages, sign-in / wrong code, live-ended page, data
 layer (query strings, token, 401, signed links), evidence boxes, Action Queue columns / filters / bulk-action intersection /
-"available in M09", column memory, Dashboard cards, change polling only while visible, Knowledge Base wording. Back-end: 563.
+"available in M09", column memory, Dashboard cards, change polling only while visible, idle pause / 60-minute sign-out / activity postpones it, deep links and shared links, Knowledge Base wording. Back-end: 563.
 
 ## Limits
 - Actions are not functional yet (M09); the Confirm button is shown per role.
