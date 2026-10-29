@@ -216,3 +216,6 @@ Known weak spots and deferred work - check here before planning a module.
     scripts.gmail_auth + upload.
   - The Azure free account ends ~25 Nov and is never upgraded, so the M15 snapshot must be exported while Azure still runs.
   - The Claude plan ends 17 Nov.
+  - Revoke old GitHub tokens (owner): delete the former GHCR pull token (classic PAT) under GitHub -> Developer settings ->
+    Tokens (classic). Nothing uses it any more (checked 29 Oct: no registry or secret on the Container App or job, no
+    Key Vault secret, no workflow reference; the GitHub secret GHCR_PULL_TOKEN was deleted). Remove this line when done.
