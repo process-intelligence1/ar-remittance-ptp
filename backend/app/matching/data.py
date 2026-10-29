@@ -27,6 +27,7 @@ class OpenItem:
     bldat: date              # document (invoice) date
     due: date | None         # baseline date (ZFBDT)
     blocked: bool            # payment block ZLSPR = R
+    region: str | None = None  # XREF2
 
     @property
     def is_credit(self) -> bool:
@@ -71,11 +72,11 @@ class SapData:
 def load_sap(db: Session) -> SapData:
     items: dict[int, OpenItem] = {}
     by_x, by_b, by_v, by_k = defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list)
-    for r in db.execute(text("select id, bukrs, kunnr, belnr, xblnr, vbeln, waers, wrbtr, shkzg, bldat, zfbdt, zlspr "
+    for r in db.execute(text("select id, bukrs, kunnr, belnr, xblnr, vbeln, waers, wrbtr, shkzg, bldat, zfbdt, zlspr, xref2 "
                              "from sap.bsid")):
         amount = -r.wrbtr if r.shkzg == "H" else r.wrbtr
         it = OpenItem(r.id, r.bukrs, r.kunnr, r.belnr, r.xblnr, r.vbeln, r.waers, amount, r.shkzg, r.bldat, r.zfbdt,
-                      (r.zlspr or "").upper() == "R")
+                      (r.zlspr or "").upper() == "R", r.xref2)
         items[it.id] = it
         by_k[it.kunnr].append(it)
         for value, index in ((it.xblnr, by_x), (it.belnr, by_b), (it.vbeln, by_v)):

@@ -83,6 +83,17 @@ class Settings(BaseSettings):
     worker_job_name: str = ""
     worker_time_budget_s: int = 180  # the worker starts no new e-mail after this many seconds
 
+    # --- Demo login (M07) --------------------------------------------------------------
+    # Presenters type DEMO_ACCESS_CODE; the API then issues a signed token (JWT_SECRET). Azure: both from Key Vault.
+    # Empty = login switched off (no token, no data).
+    demo_access_code: str = ""
+    jwt_secret: str = ""
+    token_hours: float = 10        # token lifetime; afterwards 401
+    file_url_ttl_s: int = 300      # signed attachment download links
+    login_max_attempts: int = 10   # per IP and window; then locked out
+    login_window_s: int = 60
+    login_lockout_s: int = 120
+
     # --- Front-end origin allowed to call the API (CORS) -------------------------
     cors_origins: str = "http://localhost:5173"
 

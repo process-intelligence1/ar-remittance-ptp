@@ -178,7 +178,7 @@ def _work_item(db: Session, email: EmailMessage, x, row: Row, inp, bd: date) -> 
                                        "amount": 70}.get(line.method, 60)) if line else None,
         extraction_evidence=_json(line.evidence) if line and line.evidence else None,
         extraction_line_id=line.extraction_line_id if line else None,
-        bsid_id=item.id if item else None, bsid_match_flag=item is not None,
+        bsid_id=item.id if item else None, bsid_match_flag=item is not None, region=item.region if item else None,
         bsid_open_item_status="OPEN" if item else None, match_type=row.match_type,
         match_field=row.match.field if row.match else None, match_level=row.match.level if row.match else (
             "NONE" if row.match_type == "INVOICE_NONE" else None),

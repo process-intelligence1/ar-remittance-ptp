@@ -32,7 +32,7 @@ param deployApp bool = true
 @description('Container image to run. The GitHub workflow later switches it to the commit-SHA tag.')
 param containerImage string = 'ghcr.io/process-intelligence1/ar-api:latest'
 
-@description('Front-end origins allowed to call the API (comma separated).')
+@description('Front-end origins allowed to call the API (comma separated): ONLY the Static Web App origin (added in M08) and localhost.')
 param corsOrigins string = 'http://localhost:5173'
 
 @description('Demo business date used by all rules.')
@@ -347,6 +347,18 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
           keyVaultUrl: '${kv.properties.vaultUri}secrets/admin-api-key'
           identity: apiIdentity.id
         }
+        {
+          // demo login (M07): the access code presenters type; must exist before deploying
+          name: 'demo-access-code'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/demo-access-code'
+          identity: apiIdentity.id
+        }
+        {
+          // demo login (M07): random signing key for tokens and signed download links; must exist before deploying
+          name: 'jwt-secret'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/jwt-secret'
+          identity: apiIdentity.id
+        }
       ]
     }
     template: {
@@ -362,6 +374,14 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
             {
               name: 'ADMIN_API_KEY'
               secretRef: 'admin-api-key'
+            }
+            {
+              name: 'DEMO_ACCESS_CODE'
+              secretRef: 'demo-access-code'
+            }
+            {
+              name: 'JWT_SECRET'
+              secretRef: 'jwt-secret'
             }
             {
               // "Process now" starts the worker job through the Azure management API (see workerStarterRole)

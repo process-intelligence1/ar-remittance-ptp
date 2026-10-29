@@ -200,6 +200,11 @@ class WorkItem(Base):
         Index("ix_work_item_status", "status"),
         Index("ix_work_item_kunnr", "kunnr"),
         Index("ix_work_item_invoice_ref_norm", "invoice_ref_norm"),
+        Index("ix_work_item_email_id", "email_id"),
+        Index("ix_work_item_bukrs", "bukrs"),
+        Index("ix_work_item_region", "region"),
+        Index("ix_work_item_updated_at", "updated_at"),
+        Index("ix_work_item_created_at", "created_at"),
         AR,
     )
 
@@ -233,6 +238,7 @@ class WorkItem(Base):
     # --- BSID match and scoring (Knowledge Base formula) ---
     bsid_id: Mapped[int | None] = mapped_column(BigInteger)  # sap.bsid.id or sap.bsad.id after clearing
     bsid_match_flag: Mapped[bool] = mapped_column(Boolean, default=False)
+    region: Mapped[str | None] = mapped_column(String(20))  # BSID XREF2 of the matched item (kept after clearing)
     bsid_open_item_status: Mapped[str | None] = mapped_column(String(20))  # OPEN | PARTIALLY_OPEN | CLEARED
     match_type: Mapped[str | None] = mapped_column(String(40))
     match_field: Mapped[str | None] = mapped_column(String(10))  # XBLNR | BELNR | VBELN
@@ -336,7 +342,8 @@ class OutboundMessage(Base):
 class AuditLog(Base):
     """Append-only history of everything that happened (system and users)."""
     __tablename__ = "audit_log"
-    __table_args__ = (Index("ix_audit_entity", "entity_type", "entity_id"), AR)
+    __table_args__ = (Index("ix_audit_entity", "entity_type", "entity_id"), Index("ix_audit_occurred_at", "occurred_at"),
+                      Index("ix_audit_actor", "actor"), AR)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     occurred_at: Mapped[datetime] = _created()

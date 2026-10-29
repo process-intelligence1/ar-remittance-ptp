@@ -6,7 +6,7 @@ Then open:     http://127.0.0.1:8000/docs   (interactive API test page)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import emails, reference, system
+from app.api import emails, reference, system, auth, dashboard, workitems
 from app.config import get_settings
 
 settings = get_settings()
@@ -32,3 +32,6 @@ app.include_router(system.router)
 app.include_router(reference.router)
 app.include_router(emails.router)
 app.include_router(emails.admin)
+app.include_router(auth.router)
+app.include_router(workitems.router)
+app.include_router(dashboard.router)
