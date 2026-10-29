@@ -16,6 +16,13 @@ Reference material in the repo:
 
 ---
 
+## Deadline, hosting and working style (decided 29 Oct 2026)
+- **Everything done by 10 Nov 2026.** The Claude plan ends 17 Nov; the Azure free account ends ~25 Nov and will NOT be
+  upgraded (never click Upgrade). Azure stays until ~25 Nov; the permanent shareable demo is **snapshot mode on
+  GitHub Pages (M15, finish by 7 Nov)**. The worker is host-neutral (`python -m app.worker --once`), so hosting can move.
+- **Working style (saves usage):** explanations one short line; summaries under 10 lines; test results as counts
+  (details only for failures); do not re-read large files - search them.
+
 ## Standard workflow for EVERY module
 
 1. **Plan**: read this module's section, inspect the relevant code, then show me a short plan
@@ -29,7 +36,7 @@ Reference material in the repo:
    After the deploy, verify the same thing works on the Azure URL.
 6. **Document**: write `docs/modules/MXX_<name>.md` in plain language (what it does, how it works,
    how to try it, limitations) and update the "Plan status" section of `CLAUDE.md`.
-7. **Summarise** for me in under 15 lines: what works, how to see it, what I need to check/do.
+7. **Summarise** for me in under 10 lines: what works, how to see it, what I need to check/do.
 
 General rules: explain each command in one plain sentence; ask before anything that creates,
 changes or deletes Azure resources (show `what-if` first and confirm it's free-tier); keep every
@@ -41,7 +48,8 @@ the exact command to run myself in a separate terminal (use `Read-Host` + right-
 ---
 
 ## MVP scope (target 9 Nov 2026)
-M01 → M08 plus the simple demo login in M08. After that: M09 → M14.
+M01 → M08 plus the simple demo login in M08. After that: M09, M10 (lean), M11, M13 (lite), M14, and M15 (snapshot,
+finish by 7 Nov). M12 is dropped. Everything done by 10 Nov 2026.
 
 ---
 
@@ -173,7 +181,7 @@ recalculated with invoice matching (/0.90 normalisation);
 evaluation report: decision distribution per scenario; JP-26-002271 (P03-0193) matches
 customer 102419 / SGD 8,300; a re-sent sample becomes DUPLICATE.
 
-## M06 — Pipeline and worker
+## M06 — Pipeline and worker (DONE, see docs/modules/M06_pipeline.md)
 **Goal:** e-mails flow end to end automatically.
 
 - `app/pipeline.py`: email → parse (M02) → classify (M03) → extract (M04) → match (M05) → audit.
@@ -206,6 +214,11 @@ locally and in Azure; a forced failure is retried and visible.
 
 ## M08 — Front-end (MVP) and demo login
 **Goal:** the prototype, working against the API.
+
+- **Data-source layer (decided 29 Oct):** the front-end gets ALL data through one layer, `frontend/src/data/`, with two
+  implementations chosen by `VITE_DATA_SOURCE`: **live** (the API) and **snapshot** (static JSON, see M15). Screens
+  never call `fetch` directly; actions (confirm, reject, ...) also go through this layer. Build it this way from the
+  first screen.
 
 - `frontend/`: React + Vite + TypeScript. **Reuse the prototype's CSS (design tokens, layout,
   cards, badges, tables, modals) so it looks the same**; TanStack Query + Table; Chart.js.
@@ -245,35 +258,43 @@ in the Action Queue without refresh; works on a 1366-px laptop screen.
 - Customer replies (same thread) attach to the same e-mail case and trigger re-processing.
 - Every action → audit log with before/after values.
 
-## M10 — PTP engine
-- `ar.ptp_commitment` per invoice/instalment; daily check (business date): paid → KEPT,
-  partly → PARTIALLY_KEPT, not paid by promise + grace (3 days) → BROKEN → alert to Collections,
-  escalate to Supervisor after 2 more days.
-- PTP Tracker screen: upcoming / due / kept / broken, per-customer reliability.
+## M10 — PTP engine (lean)
+- `ar.ptp_commitment` per invoice/instalment; daily check (business date): paid → KEPT, partly → PARTIALLY_KEPT, not paid
+  by promise + grace (3 days) → BROKEN → alert to Collections, escalation to Supervisor after 2 more days.
+- PTP Tracker screen. Link P03R / P05R payments to the earlier promise. No per-customer reliability scoring.
 
 ## M11 — Demo Control and history
 - Choose ~35 samples covering every scenario code as the **live set**; the rest = **history**.
-- `scripts.build_history`: process the history set with business dates spread over the previous
-  3 months, then play out realistic actions (confirm, reject, edit, clarifications, PTP kept/broken)
-  by the four demo users so every invoice has an action trail.
-- Snapshot: copy `ar.*` and `sap.bsid`/`sap.bsad` into schema `snap`; **Reset demo** = truncate +
-  restore from `snap` (seconds, no external tools).
-- Demo Control page: Reset demo, Send sample (pick from live set), Upload sample (zip/folder in the
-  same format → added to the library in Blob storage), Process now, business date (+N days),
-  link a sender address to a customer.
+- `scripts.build_history`: process the history set with business dates spread over the previous 3 months, then play out
+  realistic actions (confirm, reject, edit, clarifications, PTP kept/broken) by the four demo users so every invoice has
+  an action trail.
+- Snapshot in schema `snap` (copy of `ar.*` and `sap.bsid`/`sap.bsad`); **Reset demo** = truncate + restore.
+- Demo Control page: Reset demo, Send sample (pick from the live set), business date (+N days), Process now.
+  Upload sample (zip/folder) and linking a sender address to a customer **only if time allows**.
 
-## M12 — Enterprise login (Entra ID)
-- App registrations (free): SPA (MSAL in React) + API; app roles = the four roles; API validates
-  Entra tokens; keep demo login available behind a setting for presenters without accounts.
+## M12 — DROPPED
+Enterprise login (Entra ID) is not built; the demo login with the access code (M08) is enough.
 
-## M13 — Hardening and governance
-- Budget-triggered auto-stop (Action Group → free automation that scales the API/Job to 0 and stops
-  PostgreSQL); Defender for Cloud free CSPM secure score; Dependabot; Trivy image scan in CI;
-  App Insights dashboards (requests, failures, processing times); Log Analytics cap check;
-  manual deploy gate; health probes; backup/restore drill for the database.
+## M13 — Hardening (lite)
+- Secret scan workflow (gitleaks) kept; Dependabot / dependency alerts switched on; short `docs/SECURITY.md` describing the
+  security setup (secrets in Key Vault, admin key, demo access code, public repo rules). No budget automation, no Defender,
+  no Trivy/App Insights dashboards.
 
-## M14 — Accuracy, presenter pack
-- Evaluation dashboard page (classification + extraction + match accuracy per scenario, from the
-  golden set built by analyst confirmations); presenter runbook (`docs/PRESENTER_RUNBOOK.md`);
-  architecture slide content incl. "what production would add" (private networking, HA/DR,
-  real SAP and Exchange connectors).
+## M14 — Presenter pack (lite)
+- `docs/PRESENTER_RUNBOOK.md`: the live link (works until ~25 Nov) and the permanent GitHub Pages link, demo script,
+  what to click, reset steps. An accuracy summary assembled from the existing reports (M03 / M04 / M05); no dashboard page.
+- Architecture slide content incl. "what production would add" (private networking, HA/DR, real SAP and Exchange
+  connectors, Entra ID login).
+
+## M15 — Snapshot mode on GitHub Pages (finish by 7 Nov 2026)
+**Goal:** a permanent, free, shareable demo that needs no server after Azure ends (~25 Nov).
+- Export script `scripts.export_snapshot`: all screen data as static JSON - work items, e-mail texts, attachment files,
+  extraction evidence, candidates and score breakdowns, KPI inputs, audit trail, PTP data, Knowledge Base content.
+  **No secrets, no real customer data** (samples and SAP data are synthetic; the repo is public).
+- Front-end built with `VITE_DATA_SOURCE=snapshot` (the data-source layer from M08) and deployed to GitHub Pages by
+  GitHub Actions.
+- Actions (confirm, reject, ...) work **in the browser** on the loaded data, with a banner "Demo snapshot - changes reset
+  on reload" and a Reset button. **KPIs and chart data are computed in the browser from the snapshot rows**, so actions
+  taken during a demo update the Dashboard immediately.
+- Outbound e-mails are shown as previews (nothing is sent). Gmail and Process now are hidden.
+- Demo login in snapshot mode: pick a demo user; no API and no access code (the data is public synthetic data).

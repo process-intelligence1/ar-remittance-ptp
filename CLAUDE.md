@@ -73,6 +73,24 @@ one plain sentence before running it, and summarise results in plain language.
   invoice), Send sample e-mail (Gmail import with the customer as sender), Upload sample, Process now,
   business date. ~35 samples held back for live sending.
 
+## Deadline, hosting and working style (decided 29 Oct 2026)
+- Everything done by 10 Nov 2026. Claude plan ends 17 Nov; the Azure free account ends ~25 Nov and will NOT be upgraded
+  (never click Upgrade on Azure). Azure stays until ~25 Nov; the permanent shareable demo is snapshot mode on GitHub Pages
+  (M15, finish by 7 Nov). The worker is host-neutral (`python -m app.worker --once`).
+- Working style (saves usage): explanations one short line; summaries under 10 lines; show test results as counts
+  (details only for failures); do not re-read large files - search them.
+- Scope: M08 front-end gets ALL data through one layer `frontend/src/data/` with two implementations, "live" (API) and
+  "snapshot" (static JSON), chosen by VITE_DATA_SOURCE; screens never call fetch directly, actions also go through the layer;
+  demo login with an access code (Key Vault). M10 lean (commitments, kept / partially kept / broken, alert + escalation, PTP
+  tracker; no reliability scoring). M11: Reset demo, send sample, business date, 3-month history with actions per invoice
+  (upload sample only if time allows). M12 DROPPED. M13 lite (secret scan, dependency alerts, docs/SECURITY.md; no budget
+  automation / Defender). M14: presenter runbook (live link until 25 Nov + permanent GitHub Pages link) + accuracy summary
+  from existing reports, no dashboard page. M15 snapshot mode (by 7 Nov): export script (all screen data, e-mail texts,
+  attachment files, evidence, candidates, KPIs, audit, PTP, Knowledge Base; no secrets), front-end built with
+  VITE_DATA_SOURCE=snapshot deployed to GitHub Pages by GitHub Actions; actions work in the browser with a "Demo snapshot -
+  changes reset on reload" banner and Reset button; outbound e-mails shown as previews; Gmail / Process now hidden; KPIs and
+  chart data computed in the browser from the snapshot rows so actions update the Dashboard immediately.
+
 ## Data
 - data/seed/*.xlsx  - SAP reference data (BSID 4,840 open items, 71 customers, 6 company codes).
 - data/samples/emails/<CODE>/ - 234 sample e-mails (body.txt + attachments). Folder prefix = scenario:
@@ -158,7 +176,8 @@ one plain sentence before running it, and summarise results in plain language.
   backlog incl. OCR 134 s; 5-minute schedule would use 91 % of the free grant, 10 minutes uses ~46 %. Real test: R19-0116
   sent from the laptop -> 2 AUTO_PROCESS work items; the 12 older Azure e-mails (R21-R32) all processed. Tests: 543 pass.
   The Azure policy now also allows Microsoft.App/jobs + Microsoft.Authorization/roleDefinitions.
-- Next: M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+- Next: M07-M08 (data-source layer from the start), then M09, M10 lean, M11, M15 snapshot (by 7 Nov), M13 lite, M14.
+  M12 dropped. MVP target 9 Nov 2026; everything done by 10 Nov 2026 (see docs/BUILD_PLAN.md).
 
 ## Open issues (as of 28 Oct 2026)
 Known weak spots and deferred work - check here before planning a module.
@@ -188,6 +207,8 @@ Known weak spots and deferred work - check here before planning a module.
   - M10: link P03R / P05R payments to the earlier promise (PTP kept); ar.ptp_commitment rows are already OPEN.
   - M11: history set + live set; snapshots.
 - Owner to-dos
+  - Azure free account ends ~25 Nov and will NOT be upgraded - never click Upgrade; the snapshot (M15) must be finished
+    and published on GitHub Pages before then. Everything done by 10 Nov (Claude plan ends 17 Nov).
   - Gmail token (Google app in TESTING mode) expires ~3 Nov 2026: re-run scripts.gmail_auth + upload, or publish
     the app (M08 privacy/terms pages).
   - Revoke the old GitHub classic PAT (former GHCR pull token) under Developer settings -> Tokens (classic).
