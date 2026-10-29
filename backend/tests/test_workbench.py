@@ -146,13 +146,14 @@ def test_fx_loads_the_real_tables_with_the_per_100_factor(db):
 # --------------------------------------------------------------------------- permissions
 def test_allowed_actions_follow_the_knowledge_base_table():
     assert allowed_actions("AR_ANALYST", "EXCEPTION", "EXCEPTION", "AR_ANALYST") == [
-        "ADD_BSID_DETAILS", "CONFIRM_UPDATE_SAP", "REQUEST_CLARIFICATION", "REJECT"]
+        "ADD_BSID_DETAILS", "CONFIRM_EXTRACT_EXCEL", "REQUEST_CLARIFICATION", "REJECT"]
     assert "ESCALATE_TO_SUPERVISOR" in allowed_actions("CASH_APPLICATION", "MANUAL_INVESTIGATION", "PENDING_REVIEW", "CASH_APPLICATION")
     assert "ESCALATE_TO_SUPERVISOR" not in allowed_actions("AR_SUPERVISOR", "MANUAL_INVESTIGATION", "PENDING_REVIEW", "CASH_APPLICATION")
     assert allowed_actions("AR_ANALYST", "DUPLICATE", "DUPLICATE", "AR_ANALYST") == [
         "CLOSE_AS_DUPLICATE", "REQUEST_CLARIFICATION", "MARK_NON_DUPLICATE", "ADD_UPDATE_DETAILS"]
     assert allowed_actions("COLLECTIONS_ANALYST", "MANUAL_REVIEW", "PENDING_REVIEW", "CASH_APPLICATION") == []  # not theirs
     assert allowed_actions("AR_SUPERVISOR", "MANUAL_REVIEW", "RESOLVED", "CASH_APPLICATION") == []            # closed
+    assert allowed_actions("AR_ANALYST", "AUTO_PROCESS", "CONFIRMED", "CASH_APPLICATION") == []               # already confirmed
     assert allowed_actions("AR_SUPERVISOR", "OUT_OF_SCOPE", "IGNORED", None) == []
 
 

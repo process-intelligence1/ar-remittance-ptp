@@ -241,26 +241,53 @@ locally and in Azure; a forced failure is retried and visible.
 - The repo and the app are public, so the demo login ALSO requires a **demo
   access code** (Key Vault secret, typed in by presenters; never in the repo or the front-end bundle).
   Without a valid code: no token, no data.
-- Azure: Static Web Apps **Free** tier; GitHub Actions builds and deploys it; API CORS updated.
-- Add simple public `/privacy` and `/terms` pages on the Static Web App, then give me the steps to
+- **Hosting: GitHub Pages** (not Static Web Apps: it is not in the Azure policy and survives the end of the Azure free
+  account). The live edition (`VITE_DATA_SOURCE=live`, against the Azure API) is published at `/live/`; the demo
+  edition (snapshot, M15) later at the root. A workflow `frontend.yml` builds and deploys it. The API URL comes from the
+  repo variable `API_BASE_URL` (never committed). API CORS allows only `https://process-intelligence1.github.io` and
+  localhost (Bicep parameter, what-if shown first). `/api/emails` is put behind the demo login.
+- **Login screen warm-up:** as soon as it opens it calls `/api/health` in the background and shows "Starting the
+  server… (up to 30 s after idle)" until the API answers; the form unlocks then (retry every 3 s; after 90 s "taking
+  longer than usual" + retry button).
+- **After Azure ends:** when the repo variable `LIVE_ENDED` is set, `/live/` shows "The live system has ended - use the
+  demo edition" with a link to the GitHub Pages root, instead of waiting on server start.
+- **Action naming:** the button, the Knowledge Base decision table and `allowed_actions` say **"Confirm & Extract to
+  Excel"** (action code `CONFIRM_EXTRACT_EXCEL`), never "Confirm & Update SAP". The button is shown in M08 (role-aware)
+  and becomes functional in M09 (until then: "available in M09"). Status CONFIRMED joins the status list.
+- Add simple public `/privacy.html` and `/terms.html` pages on the GitHub Pages site, then give me the steps to
   add them in Google Auth Platform → Branding and publish the Gmail app to "In production"
   (ends the 7-day token expiry of Testing mode). Then re-run the Gmail sign-in and token upload.
 
-**Done when:** all five screens work on the Azure URL with live data; new sample e-mail appears
+**Done when:** all five screens work on the live site (GitHub Pages `/live/` against the Azure API) with live data; the login
+screen shows the warm-up message after idle; new sample e-mail appears
 in the Action Queue without refresh; works on a 1366-px laptop screen.
 
 **→ MVP reached.**
 
-## M09 — Actions, simulated SAP update, outbound e-mail
-- Actions per KB table: Confirm & Update SAP, Change / Add details, Reject, Request
-  Clarification, Escalate to AR Supervisor, Close as Duplicate, Mark as Non-Duplicate; bulk actions.
-- Confirm & Update SAP: full payment → move BSID row to BSAD with AUGDT (business date) and a
-  generated AUGBL; short payment → reduce open amount, keep the rest open (no discounts).
+## M09 — Actions, Confirm & Extract to Excel, outbound e-mail
+- Actions per KB table: **Confirm & Extract to Excel**, Add / Update details, Reject, Request Clarification, Escalate to AR
+  Supervisor, Close as Duplicate, Mark as Non-Duplicate; bulk actions (role-aware, from `allowed_actions`).
+- **Confirm & Extract to Excel** replaces "Confirm & Update SAP". It does NOT change SAP data (no BSID -> BSAD move): the row
+  becomes status `CONFIRMED` and the audit log gets an entry (before / after, who, when, comment); the Excel file is the
+  posting file.
+  - Single row (Action Queue and Record Detail): opens an Excel-look pop-up - green title bar, column letters, row numbers,
+    gridlines, sheet tab "Case" - showing the case info read-only, with **Download .xlsx** (confirms the row, then downloads)
+    and **Cancel**.
+  - Bulk: select rows in the Action Queue -> "Confirm & Extract to Excel (n)" -> the same pop-up with one row per case plus a
+    "Summary" sheet (totals per customer and currency) -> one download. Only offered when valid for every selected row.
+  - Columns: Entry ID, Email ID, received, sender, customer no / name, company code, invoice no, BSID document
+    (BELNR / GJAHR / BUZEI), invoice amount + currency, paid amount, difference, payment date, payment reference, match level,
+    confidence, decision, confirmed by / at, comment.
+  - The .xlsx is built **in the browser with ExcelJS (MIT)**, so it works in live mode and in snapshot mode (M15).
 - Outbound e-mails from Jinja2 templates in the customer's language (KNA1.SPRAS), sent via Gmail
   API **only to processintelligence1@gmail.com**, subject `[AR-DEMO][<kind> → <intended recipient>]`,
   header `X-AR-Demo: outbound`, label `AR-Outbound`; analyst previews/edits before sending.
 - Customer replies (same thread) attach to the same e-mail case and trigger re-processing.
 - Every action → audit log with before/after values.
+
+**Done when:** every action works for the roles allowed by `allowed_actions` and is audited; single and bulk Confirm & Extract to
+Excel show the Excel-look pop-up and download a correct .xlsx (checked by opening it); bulk is refused when a selected row is not
+valid; a CONFIRMED row offers no further actions; SAP tables are unchanged.
 
 ## M10 — PTP engine (lean)
 - `ar.ptp_commitment` per invoice/instalment; daily check (business date): paid → KEPT, partly → PARTIALLY_KEPT, not paid
@@ -305,7 +332,8 @@ Not built. The demo login with the access code (M08) is the final login.
 - Actions (confirm, reject, ...) work **in the browser** on the loaded data, with a banner "Demo snapshot - changes reset
   on reload" and a Reset button. **KPIs and chart data are computed in the browser from the snapshot rows**, so actions
   taken during a demo update the Dashboard immediately.
-- Outbound e-mails are shown as previews (nothing is sent). Gmail and Process now are hidden.
+- Outbound e-mails are shown as previews (nothing is sent). Gmail and Process now are hidden. Confirm & Extract to Excel
+  works in the browser (ExcelJS) exactly as in live mode.
 - Demo login in snapshot mode: pick a demo user; no API and no access code (the data is public synthetic data).
 
 **Done when:**

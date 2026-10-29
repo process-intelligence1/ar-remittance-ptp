@@ -193,7 +193,7 @@ class WorkItem(Base):
 
     final_classification: REMITTANCE | PTP | DUPLICATE | EXCEPTION | OUT_OF_SCOPE
     status:               AUTO_PROCESSED | PENDING_REVIEW | EXCEPTION | DUPLICATE |
-                          RESOLVED | REJECTED | IGNORED
+                          CONFIRMED | RESOLVED | REJECTED | IGNORED
     """
     __tablename__ = "work_item"
     __table_args__ = (
@@ -236,7 +236,7 @@ class WorkItem(Base):
     extraction_evidence: Mapped[dict | None] = mapped_column(JSONB)  # where each value was found
 
     # --- BSID match and scoring (Knowledge Base formula) ---
-    bsid_id: Mapped[int | None] = mapped_column(BigInteger)  # sap.bsid.id or sap.bsad.id after clearing
+    bsid_id: Mapped[int | None] = mapped_column(BigInteger)  # sap.bsid.id of the matched open item (BSID/BSAD are never changed by the app)
     bsid_match_flag: Mapped[bool] = mapped_column(Boolean, default=False)
     region: Mapped[str | None] = mapped_column(String(20))  # BSID XREF2 of the matched item (kept after clearing)
     bsid_open_item_status: Mapped[str | None] = mapped_column(String(20))  # OPEN | PARTIALLY_OPEN | CLEARED

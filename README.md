@@ -58,4 +58,4 @@ Open http://127.0.0.1:8000/docs
 
 - Secrets live outside the project folder and in `.env`, which Git ignores.
 - Every outgoing e-mail is redirected to the demo inbox (`OUTBOUND_MODE=redirect`).
-- SAP is simulated: "Confirm & Update SAP" moves items from `sap.bsid` to `sap.bsad`.
+- SAP is simulated and read-only for the app: "Confirm & Extract to Excel" marks a row CONFIRMED and produces the Excel posting file; `sap.bsid` / `sap.bsad` are never changed.

@@ -23,7 +23,7 @@ one plain sentence before running it, and summarise results in plain language.
 - Extraction: rules + small classifier. No local LLM (RAM). Optional free hosted LLM switch later.
 - Front-end: React + Vite + TypeScript, reusing the prototype's own CSS look; TanStack Query/Table; Chart.js.
 - Cloud (demo env): Azure Container Apps (API + scheduled worker job), Azure Database for PostgreSQL
-  (B1ms), Blob Storage, Key Vault, Static Web Apps, App Insights. Deployed by GitHub
+  (B1ms), Blob Storage, Key Vault, App Insights. Front-end on GitHub Pages (live edition at /live/, demo edition = snapshot at the root). Deployed by GitHub
   Actions + Bicep. GitHub Container Registry (not Azure Container Registry).
 
 ## Hard rules
@@ -33,9 +33,9 @@ one plain sentence before running it, and summarise results in plain language.
    token files, passwords. If a value is needed in .env, ask the owner to type it in themselves.
 3. Every outgoing e-mail goes ONLY to processintelligence1@gmail.com (OUTBOUND_MODE=redirect),
    stating the intended recipient in the subject/body.
-4. SAP is simulated in PostgreSQL: schema "sap" (BSID, BSAD, KNA1, ...). Confirm & Update SAP moves
-   an item from sap.bsid to sap.bsad; partial payments reduce the open amount, the rest stays open.
-   No discounts.
+4. SAP is simulated in PostgreSQL: schema "sap" (BSID, BSAD, KNA1, ...) and is READ-ONLY for the app. The action
+   "Confirm & Extract to Excel" does NOT move BSID to BSAD: the row becomes status CONFIRMED (audit entry) and the
+   Excel file is the posting file. No discounts.
 5. Database changes only through Alembic migrations. Never edit tables by hand.
 6. Ask before: git push, deleting files, changing anything outside D:\Finance\AR_Remittance,
    anything in Azure.
@@ -69,6 +69,14 @@ one plain sentence before running it, and summarise results in plain language.
 - Payer/currency cluster: same customer's past items in the same currency from the same sender
   domain; leave blank when there is not enough history.
 - Roles: AR_ANALYST, CASH_APPLICATION, COLLECTIONS_ANALYST, AR_SUPERVISOR.
+- Action "Confirm & Extract to Excel" (replaces "Confirm & Update SAP" everywhere). Single row (Action Queue and Record
+  Detail): an Excel-look pop-up (green title bar, column letters, row numbers, gridlines, sheet tab "Case") shows the case,
+  read-only, with "Download .xlsx" (this confirms the row, then downloads) and "Cancel". Bulk: select rows -> "Confirm &
+  Extract to Excel (n)" -> same pop-up, one row per case + a "Summary" sheet (totals per customer and currency), one
+  download; only offered when valid for every selected row. Columns: Entry ID, Email ID, received, sender, customer
+  no/name, company code, invoice no, BSID document (BELNR/GJAHR/BUZEI), invoice amount + currency, paid amount, difference,
+  payment date, payment reference, match level, confidence, decision, confirmed by/at, comment. The .xlsx is built in the
+  browser with ExcelJS (MIT), so it works in live and snapshot mode. Built in M09; M08 only shows the button.
 - Demo Control page: Reset demo (restores the reset point, schema demo_reset, with ~200 history e-mails incl. actions per
   invoice), Send sample e-mail (Gmail import with the customer as sender), Upload sample, Process now,
   business date. ~35 samples held back for live sending.
@@ -80,6 +88,12 @@ one plain sentence before running it, and summarise results in plain language.
   worker is host-neutral (`python -m app.worker --once`).
 - Working style (saves usage): explanations one short line; summaries under 10 lines; show test results as counts
   (details only for failures); do not re-read large files - search them.
+- Hosting of the front-end: GitHub Pages for both editions - live edition (VITE_DATA_SOURCE=live, against the Azure API,
+  CORS origin https://process-intelligence1.github.io) at /live/ and the demo edition (snapshot, M15) at the root; plain
+  /privacy.html and /terms.html for the Gmail app. API URL comes from the repo variable API_BASE_URL (never committed). When
+  the repo variable LIVE_ENDED is set (after Azure ends) /live/ shows "The live system has ended - use the demo edition"
+  with a link to the root instead of waiting for the server. The login screen wakes the API with /api/health and shows
+  "Starting the server... (up to 30 s after idle)" until it answers.
 - Scope: M08 front-end gets ALL data through one layer `frontend/src/data/` with two implementations, "live" (API) and
   "snapshot" (static JSON), chosen by VITE_DATA_SOURCE; screens never call fetch directly, actions also go through the layer;
   demo login + demo access code (Key Vault) is the final login. M10 lean (commitments, kept / partially kept / broken, alert
@@ -215,7 +229,7 @@ Known weak spots and deferred work - check here before planning a module.
   - M08: Knowledge Base page must use the recalculated worked example (NONE 56.4 % / NEAR 83.7 % / EXACT 95.3 %
     = max(fast path 92, formula)) - the prototype's 85.34 % does not follow raw / 0.90; fast-path text =
     "max(fast-path value, formula)". Demo login needs a demo access code (Key Vault).
-  - M09: Confirm & Update SAP, Mark as Non-Duplicate (R25 "CORRECTED" advices are flagged DUPLICATE on purpose).
+  - M09: Confirm & Extract to Excel (status CONFIRMED + Excel pop-up/download, single and bulk), Mark as Non-Duplicate (R25 "CORRECTED" advices are flagged DUPLICATE on purpose).
   - M10: link P03R / P05R payments to the earlier promise (PTP kept); ar.ptp_commitment rows are already OPEN.
   - M11: history set + live set; reset point (schema demo_reset).
 - External facts
