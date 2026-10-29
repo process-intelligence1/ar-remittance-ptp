@@ -1,0 +1,63 @@
+name: Publish site (GitHub Pages)
+
+# Builds the front-end (live edition) and publishes the site: root = landing + /privacy.html + /terms.html,
+# /live/ = the live edition working against the Azure API. M15 adds the demo (snapshot) edition at the root.
+# The API address is NOT in the repo: it comes from the repository variable API_BASE_URL (Settings -> Variables).
+# Set the repository variable LIVE_ENDED to "true" after the Azure environment is gone: /live/ then says so.
+on:
+  push:
+    branches: [main]
+    paths: ["frontend/**", "pages/**", ".github/workflows/frontend.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install, test, build the live edition
+        working-directory: frontend
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/live/
+          VITE_DATA_SOURCE: live
+          VITE_API_URL: ${{ vars.API_BASE_URL }}
+          VITE_LIVE_ENDED: ${{ vars.LIVE_ENDED }}
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - name: Assemble the site
+        run: |
+          mkdir -p site/live
+          cp -r pages/. site/
+          cp -r frontend/dist/. site/live/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

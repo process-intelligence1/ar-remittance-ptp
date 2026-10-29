@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.api.auth import CurrentUser, current_user
 from app.classification.service import classify_email
 from app.config import get_settings
 from app.db import get_db
@@ -361,7 +362,9 @@ def test_admin_match_endpoint(db, storage, monkeypatch):
         body = r.json()
         assert r.status_code == 200 and body["work_items"][0]["decision"] == "MANUAL_REVIEW"  # found by amount
         assert "amount" not in body["work_items"][0]
+        app.dependency_overrides[current_user] = lambda: CurrentUser("t@x.y", "T", "AR_ANALYST")
         listed = next(i for i in c.get("/api/emails", params={"limit": 5}).json()["items"] if i["email_ref"] == e.email_ref)
         assert listed["work_items"] == {"MANUAL_REVIEW": 1}
     finally:
+        app.dependency_overrides.pop(current_user, None)
         app.dependency_overrides.pop(get_db, None)

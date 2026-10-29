@@ -203,7 +203,17 @@ one plain sentence before running it, and summarise results in plain language.
   work_item.region added (migration). Tests: 562 pass. DEPLOYED (bddbbf8) and checked on Azure with scripts.check_api
   (login, list, detail, signed file link, KPIs, audit, changes all OK; 401 without token; 429 after 10 attempts; first call
   after idle ~31 s = scale-from-zero cold start).
-- Next: M08 (data-source layer from the start), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
+- M08 built and tested locally, NOT yet published (see docs/modules/M08_frontend.md): frontend/ (React + Vite + TS, prototype CSS
+  copied unchanged, TanStack Query/Table, Chart.js), data-source layer src/data (live + snapshot placeholder), login screen with
+  /api/health warm-up message, Dashboard, Action Queue (Match_Field / Match_Level, bulk select), Record Detail with PDF page
+  viewer + evidence highlights, Audit Trail, Knowledge Base (Invoice Number Match, 56.4/83.7/95.3 example), Demo Control
+  placeholder, /api/changes polling (visible tab only), LIVE_ENDED page. Hosting = GitHub Pages (.github/workflows/frontend.yml:
+  root = pages/ landing + privacy.html + terms.html, /live/ = live edition; API URL from repo variable API_BASE_URL). Backend:
+  /api/emails behind login, PDF page-image endpoint, CORS origin https://process-intelligence1.github.io (Bicep parameter, not
+  yet deployed). Tests: 20 front-end + 563 back-end. Checked locally in the browser (login, dashboard, queue, detail with
+  highlighted PDF values). To do for "done": enable Pages, set variable API_BASE_URL, deploy CORS, push, check on the live site.
+- Plan change 29 Oct: action "Confirm & Extract to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
+- Next: finish M08 (publish + live check), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
 
 ## Open issues (as of 28 Oct 2026)
 Known weak spots and deferred work - check here before planning a module.

@@ -26,6 +26,7 @@ router = APIRouter(prefix="/api", tags=["Workbench"])
 
 MAX_PAGE = 200
 CHANGES_OVERLAP_S = 60
+PAGE_DPI = 110  # page images for the attachment viewer
 INLINE_TYPES = ("application/pdf", "image/png", "image/jpeg", "image/tiff", "image/gif", "text/plain", "text/csv")
 
 
@@ -179,6 +180,8 @@ def work_item_detail(item_id: str, user: CurrentUser = Depends(current_user), db
         meta["chars"] = len(a.text_content or "")
         meta["url"] = f"/api/attachments/{a.id}/file?token={make_file_token(a.id, user.email)}"  # about 5 minutes
         meta["viewable_inline"] = (a.mime_type or "") in INLINE_TYPES
+        if a.mime_type == "application/pdf":  # page images (with the highlight boxes drawn over them by the browser)
+            meta["page_url"] = f"/api/attachments/{a.id}/page/{{page}}?token={make_file_token(a.id, user.email)}"
         attachments.append(meta)
 
     cls = db.scalar(select(EmailClassification).where(EmailClassification.email_id == e.id,
@@ -237,6 +240,26 @@ def attachment_file(attachment_id: int, token: str, db: Session = Depends(get_db
                "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=300",
                "Content-Security-Policy": "sandbox"}
     return Response(get_storage().get(a.storage_uri), media_type=mime if inline else "application/octet-stream", headers=headers)
+
+
+@router.get("/attachments/{attachment_id}/page/{page}", summary="One page of a PDF as a PNG image (signed link)")
+def attachment_page(attachment_id: int, page: int, token: str, db: Session = Depends(get_db)):
+    claims = read_token(token, "file")
+    if claims.get("att") != attachment_id:
+        raise HTTPException(401, "This link is for a different file.")
+    a = db.get(EmailAttachment, attachment_id)
+    if a is None or a.mime_type != "application/pdf":
+        raise HTTPException(404, "No page images for this attachment")
+    import pymupdf  # in the container image; imported here so the module loads without it
+
+    doc = pymupdf.open(stream=get_storage().get(a.storage_uri), filetype="pdf")
+    try:
+        if not 1 <= page <= doc.page_count:
+            raise HTTPException(404, f"The file has {doc.page_count} page(s)")
+        png = doc[page - 1].get_pixmap(dpi=PAGE_DPI).tobytes("png")
+    finally:
+        doc.close()
+    return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/attachments/{attachment_id}/layout", summary="Words with positions + tables of an attachment (evidence highlighting)")

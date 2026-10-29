@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.auth import CurrentUser, current_user
 from app.config import get_settings
 from app.gmail import parsing
 from app.gmail.poller import PollerDisabled, poll
@@ -55,9 +56,15 @@ def test_admin_endpoint_with_key_reaches_the_poller(monkeypatch):
     assert r.status_code == 409 and "POLLER_ENABLED" in r.json()["detail"]
 
 
-def test_public_endpoints_need_no_key(monkeypatch):
+def test_email_list_needs_the_demo_login_not_the_admin_key(monkeypatch):
     monkeypatch.setattr(get_settings(), "admin_api_key", KEY)
-    assert client.get("/api/emails?limit=1").status_code == 200
+    assert client.get("/api/emails?limit=1").status_code == 401
+    assert client.get("/api/emails?limit=1", headers={"X-Admin-Key": KEY}).status_code == 401
+    app.dependency_overrides[current_user] = lambda: CurrentUser("t@x.y", "T", "AR_ANALYST")
+    try:
+        assert client.get("/api/emails?limit=1").status_code == 200
+    finally:
+        app.dependency_overrides.pop(current_user, None)
 
 
 def test_openapi_shows_the_admin_key():

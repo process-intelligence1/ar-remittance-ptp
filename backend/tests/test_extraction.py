@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.api.auth import CurrentUser, current_user
 from app.classification.service import classify_email
 from app.config import get_settings
 from app.db import get_db
@@ -251,8 +252,11 @@ def test_admin_extract_endpoint(db, storage, monkeypatch):
         classify_email(db, e, model=None)
         r = c.post(f"/api/admin/emails/{e.email_ref}/extract", headers=h)
         assert r.status_code == 200 and r.json()["extraction"]["status"] == "NO_LINES"  # R13: no invoice numbers
+        assert c.get("/api/emails").status_code == 401  # the e-mail list needs the demo login
+        app.dependency_overrides[current_user] = lambda: CurrentUser("t@x.y", "T", "AR_ANALYST")
         listed = c.get("/api/emails", params={"limit": 5}).json()["items"]
         mine = next(i for i in listed if i["email_ref"] == e.email_ref)
         assert mine["extraction"]["lines"] == 0 and "total" not in mine["extraction"]  # counts only, no amounts
     finally:
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(current_user, None)

@@ -323,3 +323,26 @@ def test_responses_stay_under_one_second_on_a_history_sized_set(client, db):
         r = client.get(url, headers=h)
         assert r.status_code == 200 and time.perf_counter() - t < 1.0, url
     assert client.get("/api/kpis?customer=ZZPERF", headers=h).json()["cards"]["total"]["count"] == 5000
+
+
+def test_pdf_pages_are_served_as_images_for_the_viewer(client, db, tmp_path, monkeypatch):
+    import pymupdf
+
+    doc = pymupdf.open()
+    doc.new_page(width=300, height=200).insert_text((20, 40), "Remittance advice")
+    pdf = doc.tobytes()
+    storage = LocalStorage(tmp_path / "f")
+    monkeypatch.setattr("app.api.workitems.get_storage", lambda: storage)
+    e = make_email(db)
+    w = make_item(db, e)
+    att = EmailAttachment(email_id=e.id, filename="a.pdf", mime_type="application/pdf", size_bytes=len(pdf), sha256="c" * 64,
+                          storage_uri=storage.put("x/a.pdf", pdf, "application/pdf"), depth=0, page_count=1)
+    db.add(att)
+    db.flush()
+    d = client.get(f"/api/work-items/{w.entry_id}", headers=headers(client)).json()
+    template = d["attachments"][0]["page_url"]
+    assert "{page}" in template
+    img = client.get(template.replace("{page}", "1"))
+    assert img.status_code == 200 and img.headers["content-type"] == "image/png" and img.content[:4] == b"\x89PNG"
+    assert client.get(template.replace("{page}", "2")).status_code == 404
+    assert client.get(f"/api/attachments/{att.id}/page/1").status_code == 422  # no token

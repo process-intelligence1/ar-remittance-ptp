@@ -9,13 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.auth import current_user
 from app.api.security import require_admin_key
 from app.db import get_db
 from app.gmail.client import GmailNotConfigured
 from app.gmail.poller import PollAlreadyRunning, PollerDisabled, poll
 from app.models.ar import EmailAttachment, EmailClassification, EmailMessage, Extraction, WorkItem
 
-router = APIRouter(prefix="/api", tags=["E-mails"])
+router = APIRouter(prefix="/api", tags=["E-mails"], dependencies=[Depends(current_user)])  # needs the demo login
 admin = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(require_admin_key)])
 
 
