@@ -38,8 +38,8 @@ param corsOrigins string = 'http://localhost:5173'
 @description('Demo business date used by all rules.')
 param businessDate string = '2026-10-28'
 
-@description('Cron schedule (UTC) of the worker job. Every 5 minutes keeps the monthly free grant; see docs/modules/M06_pipeline.md.')
-param workerCron string = '*/5 * * * *'
+@description('Cron schedule (UTC) of the worker job. Every 10 minutes keeps half of the monthly free grant (5 minutes would use ~91 %); see docs/modules/M06_pipeline.md.')
+param workerCron string = '*/10 * * * *'
 
 var workerJobName = 'ar-worker'
 var tags = {

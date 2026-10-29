@@ -22,8 +22,8 @@ E-mails now move through the whole chain by themselves:
 - Laptop: `python -m scripts.process` (all unfinished), `--email EML-...` (one, errors shown), `--jobs`.
 
 ## Azure (infra/main.bicep)
-- Container Apps **Job** `ar-worker`: same image, command `python -m app.worker --once`, cron `*/5 * * * *`
-  (parameter `workerCron`), 0.5 vCPU / 1 GiB, 1 run at a time, no job-level retry.
+- Container Apps **Job** `ar-worker`: same image, command `python -m app.worker --once`, cron `*/10 * * * *`
+  (parameter `workerCron`; was every 5 minutes at first), 0.5 vCPU / 1 GiB, 1 run at a time, no job-level retry.
 - Custom role **AR Worker Job Starter**: one permission, `Microsoft.App/jobs/start/action`. Defined in the
   resource group, **assigned only on the job resource** to the API's identity `id-ar-api`. It can start this
   job and nothing else (cannot read, change or start anything else).
@@ -31,10 +31,21 @@ E-mails now move through the whole chain by themselves:
 - The deploy workflow now updates the job's image together with the API, and the clean-up keeps the job's image.
 
 ## Free-grant maths (Container Apps: 180,000 vCPU-s and 360,000 GiB-s per month, shared with the API)
-- 5-minute schedule = about 8,640 runs a month. A run that finds nothing to do takes about 15-20 s.
-- 8,640 x 20 s x 0.5 vCPU = ~86,000 vCPU-s (48 %); 8,640 x 20 s x 1 GiB = ~173,000 GiB-s (48 %).
-- Runs that process e-mails (OCR) take longer. If the measured average goes above ~30 s, set `workerCron`
-  to every 10 minutes. To be checked against real run times after the first Azure days.
+Measured in Azure on 29 Oct 2026 (job 0.5 vCPU / 1 GiB):
+
+| Run | Duration |
+|---|---|
+| Idle (nothing to process) | 37 s and 39 s (the second was started with "Process now") |
+| Busy: 1 new e-mail (R19-0116: read, OCR, classify, extract, match) | 66 s |
+| Busy: backlog of 12 older e-mails incl. OCR | 134 s (about 10 s per e-mail) |
+
+Most of an idle run is starting Python and loading the libraries, not work.
+- Every 5 minutes = 8,640 runs/month x 38 s x 0.5 vCPU = ~164,000 vCPU-s (91 %) and ~328,000 GiB-s (91 %) - too
+  close to the limit once busy runs and the API are added. **Rejected.**
+- Every 10 minutes (chosen) = 4,320 runs x 38 s = ~82,000 vCPU-s (46 %) and ~164,000 GiB-s (46 %). Busy runs: even
+  200 e-mails a month at ~10 s each add only ~1,000 vCPU-s. The API (0.25 vCPU, scale to zero) uses little.
+- "Process now" starts a run at once, so presenters never wait for the schedule.
+- Re-check after a few days with `az containerapp job execution list -g rg-ar-demo -n ar-worker`.
 
 ## Limits / decisions
 - Unreadable attachment: the read stage fails and is retried. On the LAST attempt the pipeline carries on with the

@@ -146,13 +146,19 @@ one plain sentence before running it, and summarise results in plain language.
   10 %. Customer identified 215/217; agrees with ADR6 sender 97.6 %, quoted customer no. 98.8 %, owner of exactly
   matched invoices 99.5 %. P03-0193 JP-26-002271 -> 102419 SGD 8,300 (92 % FAST_PATH, Auto). Re-sent sample ->
   DUPLICATE. Fast path applied to 361 rows: formula higher for 283, fast-path value used for 78.
-- M06 built locally, NOT yet deployed (see docs/modules/M06_pipeline.md): app/pipeline.py (read -> classify -> extract ->
-  match, resumes at the failed stage, audit per stage), app/jobs.py (ar.job queue, retries 1 min / 5 min, max 3, SKIP LOCKED),
-  app/worker.py (--once / --loop), POST /api/admin/process-now starts the Azure job at once (ARM start with the API's
-  managed identity; custom role "AR Worker Job Starter" = only jobs/start/action, assigned on the job resource), GET
-  /api/admin/jobs, scripts.process. Bicep: Container Apps Job ar-worker (*/5, 0.5 vCPU / 1 GiB) + role + policy types;
-  waits for the owner's OK (policy must be deployed first, then what-if of main.bicep). Last attempt with an unreadable attachment -> rows to review ("Attachment unreadable"). Worker is host-neutral (no Azure code; only the API's Process-now trigger is Azure-specific). Policy updated in Azure 29 Oct. Tests: 543 pass.
-- Next: finish M06 deploy, then M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+- M06 done (pipeline + worker, deployed 85ed8b0 + schedule change) - see docs/modules/M06_pipeline.md.
+  app/pipeline.py (read -> classify -> extract -> match; resumes at the failed stage; audit per stage), app/jobs.py
+  (ar.job queue, retries after 1 min / 5 min, max 3, SKIP LOCKED), app/worker.py (`python -m app.worker --once|--loop`;
+  HOST-NEUTRAL: no Azure code, any scheduler can run it). Last attempt with an unreadable attachment -> continues with
+  body + readable files, rows go to review with reason "Attachment unreadable" (never auto-processed). Azure: Container
+  Apps Job ar-worker, cron */10 (parameter workerCron), 0.5 vCPU / 1 GiB. POST /api/admin/process-now (X-Admin-Key)
+  starts the job at once via the Azure management API with the API's identity - custom role "AR Worker Job Starter" =
+  only Microsoft.App/jobs/start/action, assigned on the job resource only (app/azure_jobs.py is the only Azure-specific
+  code). GET /api/admin/jobs, scripts.process (laptop). Measured in Azure: idle run 37-39 s, 1 e-mail 66 s, 12-e-mail
+  backlog incl. OCR 134 s; 5-minute schedule would use 91 % of the free grant, 10 minutes uses ~46 %. Real test: R19-0116
+  sent from the laptop -> 2 AUTO_PROCESS work items; the 12 older Azure e-mails (R21-R32) all processed. Tests: 543 pass.
+  The Azure policy now also allows Microsoft.App/jobs + Microsoft.Authorization/roleDefinitions.
+- Next: M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
 
 ## Open issues (as of 28 Oct 2026)
 Known weak spots and deferred work - check here before planning a module.
@@ -171,9 +177,9 @@ Known weak spots and deferred work - check here before planning a module.
     stay blank until 3 past rows exist (history comes with M11); amounts in another currency score 0 for amount
     (nothing converted - TCURR conversion is planned for M07 KPIs only).
 - Deferred to later modules
-  - M06: run read -> classify -> extract -> match automatically on Azure (so far none of M03-M05 has run on Azure
-    data - only 3 Azure e-mails are even read); run `scripts.extract --reclean` once there; the manual Azure
-    classify check (admin key) was skipped by the owner.
+  - M06 follow-ups: `scripts.extract --reclean` was not run on Azure (Azure e-mails were extracted with the current
+    code, so probably unnecessary); infra/main.bicep sets the image to :latest - make the tag a parameter (owner asked,
+    later); the admin key is needed to call Process now (owner reads it from Key Vault in their own terminal).
   - M07: work-item API with filters / KPIs, USD conversion via TCURR, allowed actions per role.
   - M08: Knowledge Base page must use the recalculated worked example (NONE 56.4 % / NEAR 83.7 % / EXACT 95.3 %
     = max(fast path 92, formula)) - the prototype's 85.34 % does not follow raw / 0.90; fast-path text =
