@@ -186,8 +186,10 @@ one plain sentence before running it, and summarise results in plain language.
   JWT, 10 h token, rate limit 10/min/IP, audited), /api/work-items (list + detail with signed 5-min attachment links),
   /api/kpis (USD via TCURR latest-on-or-before + TCURX decimals; rows without rate flagged), /api/audit, /api/changes
   (polling, no SSE), role-aware allowed_actions. New Key Vault secrets demo-access-code + jwt-secret (owner creates them).
-  work_item.region added (migration). Tests: 562 pass. Azure deploy of M07 pending.
-- Next: finish M07 deploy, M08 (data-source layer from the start), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
+  work_item.region added (migration). Tests: 562 pass. DEPLOYED (bddbbf8) and checked on Azure with scripts.check_api
+  (login, list, detail, signed file link, KPIs, audit, changes all OK; 401 without token; 429 after 10 attempts; first call
+  after idle ~31 s = scale-from-zero cold start).
+- Next: M08 (data-source layer from the start), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
 
 ## Open issues (as of 28 Oct 2026)
 Known weak spots and deferred work - check here before planning a module.

@@ -44,6 +44,14 @@ assigned to them, the AR Analyst on any open row. Closed rows offer nothing. The
 rate, role actions, change feed, CORS. Performance on 5,000 rows (history size): list, KPIs and audit each < 1 s (measured in the
 tests; local database).
 
+## Checked on Azure (image bddbbf8, 29 Oct 2026)
+`python -m scripts.check_api <url>` (asks for the access code, prints counts and timings only): login 200, work items 74 rows
+(0.48 s), filtered list 0.16 s, detail with 1 attachment / 1 candidate / 9 audit entries (0.21 s), signed file link without a
+header 200 (PDF), KPIs 0.14 s (74 total, 55 AI, 15 manual, 1 duplicate, 3 exceptions, 0 USD unconverted), audit 0.16 s,
+change feed 200. Without a token every data endpoint answers 401; wrong code 401; after 10 wrong attempts the 11th gets 429
+with `Retry-After: 120`; an unknown origin gets no CORS header. The first call after idle took 31 s (the Container App
+scales from zero and opens the database connection); later calls are sub-second.
+
 ## Limits
 - The login rate limit is per API process (fine for one replica).
 - `region` for rows matched before this module was backfilled from the open item; rows with no BSID match have none.
