@@ -346,3 +346,38 @@ def test_pdf_pages_are_served_as_images_for_the_viewer(client, db, tmp_path, mon
     assert img.status_code == 200 and img.headers["content-type"] == "image/png" and img.content[:4] == b"\x89PNG"
     assert client.get(template.replace("{page}", "2")).status_code == 404
     assert client.get(f"/api/attachments/{att.id}/page/1").status_code == 422  # no token
+
+
+def test_api_start_up_does_not_import_the_heavy_libraries():
+    """Cold start: the slim API image has no OCR / image / office libraries and must not need them to start."""
+    import subprocess
+    import sys
+
+    code = ("import sys; import app.main; heavy = ['googleapiclient', 'mailparser_reply', 'cv2', 'numpy', 'PIL', 'pdfplumber', "
+            "'docx', 'pytesseract', 'openpyxl', 'sklearn', 'langdetect']; print([m for m in heavy if m in sys.modules])")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
+    assert out == "[]", out
+
+
+def test_worker_only_admin_steps_answer_501_when_the_libraries_are_missing(db, monkeypatch):
+    import builtins
+
+    monkeypatch.setattr(get_settings(), "admin_api_key", "k" * 20)
+    real_import = builtins.__import__
+
+    def no_ocr(name, *a, **k):
+        if name in ("app.documents.service", "app.classification.service", "app.extraction.service", "app.matching.service"):
+            raise ModuleNotFoundError(f"No module named 'cv2' (simulated slim image: {name})")
+        return real_import(name, *a, **k)
+
+    app.dependency_overrides[get_db] = lambda: db
+    e = make_email(db)
+    try:
+        c, h = TestClient(app), {"X-Admin-Key": "k" * 20}
+        monkeypatch.setattr(builtins, "__import__", no_ocr)
+        for step in ("parse", "classify", "extract", "match"):
+            r = c.post(f"/api/admin/emails/{e.email_ref}/{step}", headers=h)
+            assert r.status_code == 501 and "worker" in r.json()["detail"], step
+    finally:
+        monkeypatch.setattr(builtins, "__import__", real_import)
+        app.dependency_overrides.pop(get_db, None)

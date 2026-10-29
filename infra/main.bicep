@@ -29,8 +29,13 @@ param adminPrincipalId string = ''
 @description('Create the Container App (false on the very first pass, before the app secrets are in Key Vault).')
 param deployApp bool = true
 
-@description('Container image to run. The GitHub workflow later switches it to the commit-SHA tag.')
-param containerImage string = 'ghcr.io/process-intelligence1/ar-api:latest'
+@description('Image tag = the commit SHA that is deployed (never :latest). infra/deploy.ps1 passes the tag the API runs now, so a template deploy never changes the code version; the GitHub workflow moves it forward.')
+param imageTag string
+
+// Two images from one Dockerfile: ar-api = slim (no OCR libraries) for the API and the migration job,
+// ar-worker = full (Tesseract, OpenCV, ...) for the worker job.
+var apiImage = 'ghcr.io/process-intelligence1/ar-api:${imageTag}'
+var workerImage = 'ghcr.io/process-intelligence1/ar-worker:${imageTag}'
 
 @description('Front-end origins allowed to call the API (comma separated): ONLY the Static Web App origin (added in M08) and localhost.')
 param corsOrigins string = 'http://localhost:5173'
@@ -365,7 +370,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
       containers: [
         {
           name: 'ar-api'
-          image: containerImage
+          image: apiImage
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
@@ -465,7 +470,7 @@ resource workerJob 'Microsoft.App/jobs@2024-03-01' = if (deployApp) {
       containers: [
         {
           name: 'ar-worker'
-          image: containerImage
+          image: workerImage
           command: [ 'python', '-m', 'app.worker' ]
           args: [ '--once' ]
           resources: {
@@ -480,6 +485,69 @@ resource workerJob 'Microsoft.App/jobs@2024-03-01' = if (deployApp) {
   dependsOn: [
     apiIdentityKv
     apiIdentityBlob
+    dbUrlSecret
+  ]
+}
+
+// ---------------------------------------------------------------------------
+// Container Apps JOB "ar-migrate": runs the database migrations (alembic upgrade head) once per deploy, INSIDE Azure,
+// so the API no longer migrates at start-up (faster cold start) and the database firewall stays closed to GitHub.
+// Manual trigger only (the deploy workflow starts it before the new API revision); same image, identity and database secret.
+// ---------------------------------------------------------------------------
+resource migrateJob 'Microsoft.App/jobs@2024-03-01' = if (deployApp) {
+  name: 'ar-migrate'
+  location: location
+  tags: tags
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${apiIdentity.id}': {}
+    }
+  }
+  properties: {
+    environmentId: cae.id
+    configuration: {
+      triggerType: 'Manual'
+      replicaTimeout: 600
+      replicaRetryLimit: 0
+      manualTriggerConfig: {
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+      secrets: [
+        {
+          name: 'database-url'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/database-url'
+          identity: apiIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'ar-migrate'
+          image: apiImage
+          command: [ 'alembic', 'upgrade', 'head' ]
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: [
+            {
+              name: 'DATABASE_URL'
+              secretRef: 'database-url'
+            }
+            {
+              name: 'ENVIRONMENT'
+              value: 'demo'
+            }
+          ]
+        }
+      ]
+    }
+  }
+  dependsOn: [
+    apiIdentityKv
     dbUrlSecret
   ]
 }
@@ -534,5 +602,6 @@ output keyVaultName string = kv.name
 output storageAccountName string = storage.name
 output postgresServerName string = pg.name
 output postgresFqdn string = pg.properties.fullyQualifiedDomainName
+output migrateJobName string = deployApp ? migrateJob.name : ''
 output workerJobName string = deployApp ? workerJob.name : ''
 output apiUrl string = deployApp ? 'https://${app!.properties.configuration.ingress.fqdn}' : ''

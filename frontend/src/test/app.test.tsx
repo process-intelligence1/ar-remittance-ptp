@@ -31,7 +31,7 @@ describe("server warm-up", () => {
     expect(states.at(-1)).toBe("ready");
   });
 
-  it("says 'slow' after 90 s but keeps trying", async () => {
+  it("says 'slow' after 1 minute but keeps trying", async () => {
     let t = 0;
     let calls = 0;
     const states: ServerState[] = [];
@@ -57,11 +57,23 @@ describe("login screen", () => {
     expect(await screen.findByText(/Asha \(AR Analyst\)/)).toBeInTheDocument();
   });
 
-  it("shows the long-wait message after 90 s", async () => {
+  it("shows the long-wait message after 1 minute, with a Retry button that starts the wait again", async () => {
     vi.useFakeTimers();
-    renderApp(fakeDs({ health: async () => false }), "#/login");
-    await act(async () => { await vi.advanceTimersByTimeAsync(95_000); });
+    const health = vi.fn(async () => false);
+    renderApp(fakeDs({ health }), "#/login");
+    await act(async () => { await vi.advanceTimersByTimeAsync(50_000); });
+    expect(screen.getByText(STARTING_TEXT)).toBeInTheDocument(); // not yet
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
     expect(screen.getByText(SLOW_TEXT)).toBeInTheDocument();
+    const calls = health.mock.calls.length;
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Retry" })); });
+    expect(screen.getByText(STARTING_TEXT)).toBeInTheDocument();
+    expect(health.mock.calls.length).toBeGreaterThan(calls); // asks the server again at once
+  });
+
+  it("uses the agreed texts", () => {
+    expect(STARTING_TEXT).toBe("Starting the server... this can take up to 1 minute after a quiet period");
+    expect(SLOW_TEXT).toBe("Still starting - please wait or click Retry");
   });
 
   it("signs in and opens the Dashboard; a wrong code shows the error and clears the field", async () => {

@@ -41,11 +41,8 @@ class PollResult:
 
 
 # --------------------------------------------------------------------------- helpers
-def current_business_date(db: Session) -> date:
-    row = db.get(RuleConfig, "business_date")
-    if row and isinstance(row.value, dict) and row.value.get("date"):
-        return date.fromisoformat(row.value["date"])
-    return get_settings().business_date
+# moved to app/businessdate.py (light import); re-exported here for the existing imports
+from app.businessdate import current_business_date  # noqa: E402,F401
 
 
 def next_email_ref(db: Session) -> str:

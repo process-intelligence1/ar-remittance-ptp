@@ -12,9 +12,10 @@ from sqlalchemy.orm import Session
 from app.api.auth import current_user
 from app.api.security import require_admin_key
 from app.db import get_db
-from app.gmail.client import GmailNotConfigured
-from app.gmail.poller import PollAlreadyRunning, PollerDisabled, poll
 from app.models.ar import EmailAttachment, EmailClassification, EmailMessage, Extraction, WorkItem
+
+WORKER_ONLY = ("This step runs in the worker image (OCR and document libraries are not in the slim API image). "
+               "Use POST /api/admin/process-now, or run python -m scripts.process on a computer.")
 
 router = APIRouter(prefix="/api", tags=["E-mails"], dependencies=[Depends(current_user)])  # needs the demo login
 admin = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(require_admin_key)])
@@ -99,6 +100,9 @@ def list_emails(limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=
 
 @admin.post("/gmail/poll", summary="Read new inbox e-mails now (one poll) - needs X-Admin-Key")
 def poll_now(max_messages: int = Query(50, ge=1, le=200), db: Session = Depends(get_db)):
+    from app.gmail.client import GmailNotConfigured  # Gmail libraries load only when this endpoint is used (cold start)
+    from app.gmail.poller import PollAlreadyRunning, PollerDisabled, poll
+
     try:
         r = poll(db, max_messages=max_messages)
     except GmailNotConfigured as exc:
@@ -146,7 +150,10 @@ def list_jobs(status: str | None = None, limit: int = Query(50, ge=1, le=500), d
 
 @admin.post("/emails/{email_ref}/parse", summary="Read the body and attachments of one e-mail (M02) - needs X-Admin-Key")
 def parse_now(email_ref: str, reparse: bool = False, db: Session = Depends(get_db)):
-    from app.documents.service import parse_email
+    try:
+        from app.documents.service import parse_email
+    except ImportError as exc:  # the slim API image has no OCR / office libraries
+        raise HTTPException(501, WORKER_ONLY) from exc
 
     email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == email_ref))
     if email is None:
@@ -160,7 +167,10 @@ def parse_now(email_ref: str, reparse: bool = False, db: Session = Depends(get_d
 @admin.post("/emails/{email_ref}/classify",
             summary="Classify one e-mail as REMITTANCE / PTP / OUT_OF_SCOPE (M03) - needs X-Admin-Key")
 def classify_now(email_ref: str, db: Session = Depends(get_db)):
-    from app.classification.service import NotReadYet, classify_email, current_classification
+    try:
+        from app.classification.service import NotReadYet, classify_email, current_classification
+    except ImportError as exc:
+        raise HTTPException(501, WORKER_ONLY) from exc
 
     email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == email_ref))
     if email is None:
@@ -176,7 +186,10 @@ def classify_now(email_ref: str, db: Session = Depends(get_db)):
 @admin.post("/emails/{email_ref}/extract",
             summary="Extract header + invoice lines from one e-mail (M04) - needs X-Admin-Key")
 def extract_now(email_ref: str, db: Session = Depends(get_db)):
-    from app.extraction.service import NotClassifiedYet, current_extraction, extract_email
+    try:
+        from app.extraction.service import NotClassifiedYet, current_extraction, extract_email
+    except ImportError as exc:
+        raise HTTPException(501, WORKER_ONLY) from exc
 
     email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == email_ref))
     if email is None:
@@ -192,7 +205,10 @@ def extract_now(email_ref: str, db: Session = Depends(get_db)):
 @admin.post("/emails/{email_ref}/match",
             summary="Match one extracted e-mail to BSID: work items, scores, decisions (M05) - needs X-Admin-Key")
 def match_now(email_ref: str, db: Session = Depends(get_db)):
-    from app.matching.service import AlreadyWorkedOn, NotExtractedYet, match_stored_email
+    try:
+        from app.matching.service import AlreadyWorkedOn, NotExtractedYet, match_stored_email
+    except ImportError as exc:
+        raise HTTPException(501, WORKER_ONLY) from exc
 
     email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == email_ref))
     if email is None:

@@ -3,7 +3,6 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "pgAdminLogin": { "value": "aradmin" },
-    "containerImage": { "value": "ghcr.io/process-intelligence1/ar-api:latest" },
     "corsOrigins": { "value": "https://process-intelligence1.github.io,http://localhost:5173" },
     "businessDate": { "value": "2026-10-28" }
   }

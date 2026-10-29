@@ -1,0 +1,25 @@
+# Libraries of the SLIM API image (target "api" in the Dockerfile): no OCR, no image processing, no office-file readers.
+# The worker image (target "worker") installs requirements.txt (everything). Keep versions in step with requirements.txt.
+# Web API
+fastapi==0.115.6
+uvicorn==0.32.1
+httptools==0.9.0
+# Database
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+alembic==1.14.0
+# Settings
+pydantic-settings==2.6.1
+# Gmail API (admin poll endpoint)
+google-api-python-client==2.201.0
+google-auth==2.62.0
+google-auth-oauthlib==1.5.0
+google-auth-httplib2==0.4.4
+mail-parser-reply==1.36
+# Azure Blob storage with managed identity
+azure-storage-blob==12.31.0
+azure-identity==1.27.0
+# Demo login tokens and signed download links
+PyJWT==2.10.1
+# PDF pages as images for the attachment viewer (the only large library the API keeps)
+pymupdf==1.28.2

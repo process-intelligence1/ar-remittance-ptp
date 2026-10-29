@@ -15,7 +15,8 @@ param(
     [switch]$WhatIf,
     [switch]$SkipApp,
     [switch]$NoClientIp,
-    [switch]$PolicyOnly
+    [switch]$PolicyOnly,
+    [string]$ImageTag = ""   # commit tag to deploy; default = the tag the API runs now (never changes the code version)
 )
 $ErrorActionPreference = "Stop"
 $rg = "rg-ar-demo"
@@ -34,6 +35,12 @@ $adminId = az ad signed-in-user show --query id -o tsv
 $clientIp = ""
 if (-not $NoClientIp) { $clientIp = (Invoke-RestMethod -Uri "https://api.ipify.org").Trim() }
 $deployApp = if ($SkipApp) { "false" } else { "true" }
+if (-not $ImageTag) {
+    $running = az containerapp show -n ar-api -g $rg --query "properties.template.containers[0].image" -o tsv --only-show-errors 2>$null
+    if ($running) { $ImageTag = ($running -split ":")[-1] }
+}
+if ($ImageTag -notmatch '^[0-9a-f]{7,40}$') { throw "No valid image tag (commit SHA). Pass -ImageTag <sha> (the API is not running yet, or runs a non-SHA tag)." }
+Write-Host "Image tag: $ImageTag"
 
 # --- Secret: strong random password (letters + digits only, so it is URL-safe) ---
 $chars = [char[]]"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
@@ -44,7 +51,7 @@ $pw = -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
 Write-Host "== Main infrastructure ($verb, deployApp=$deployApp, laptop IP rule=$(-not $NoClientIp)) =="
 az deployment group $verb -g $rg -n ar-demo-main -f "$root\infra\main.bicep" `
     -p "@$root\infra\main.parameters.json" `
-    -p pgAdminPassword=$pw adminPrincipalId=$adminId clientIp=$clientIp deployApp=$deployApp `
+    -p pgAdminPassword=$pw adminPrincipalId=$adminId clientIp=$clientIp deployApp=$deployApp imageTag=$ImageTag `
     --only-show-errors @quiet
 $ok = $LASTEXITCODE -eq 0
 Remove-Variable pw

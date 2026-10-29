@@ -212,6 +212,12 @@ one plain sentence before running it, and summarise results in plain language.
   /api/emails behind login, PDF page-image endpoint, CORS origin https://process-intelligence1.github.io (Bicep parameter, not
   yet deployed). Idle: polling pauses after 5 min ("Paused - click to refresh"), auto sign-out after 60 min, hash routes + login?next= keep shared links / F5 working. Tests: 27 front-end + 563 back-end. Checked locally in the browser (login, dashboard, queue, detail with
   highlighted PDF values). To do for "done": enable Pages, set variable API_BASE_URL, deploy CORS, push, check on the live site.
+- Cold-start work (built locally, NOT yet deployed; see docs/COLD_START.md): two images from one Dockerfile - ar-api (slim, no OCR
+  libraries, PyMuPDF kept; target api) and ar-worker (full; target worker); migrations moved out of container start-up into the
+  manual job ar-migrate (run by the deploy workflow inside Azure before the new API; DB firewall stays closed to GitHub); Bicep
+  parameter imageTag (commit SHA, no :latest) for ar-api / ar-worker / ar-migrate, deploy.ps1 passes the running tag (-ImageTag
+  overrides); lazy Gmail imports (app/businessdate.py), compiled app code; login text "up to 1 minute" + Retry after 1 minute.
+  Observed before: 31 s and ~90 s. Per-stage admin endpoints answer 501 in the slim API (worker only). Tests: 28 front-end + 565 back-end.
 - Plan change 29 Oct: action "Confirm & Extract to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
 - Next: finish M08 (publish + live check), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
 
@@ -233,8 +239,7 @@ Known weak spots and deferred work - check here before planning a module.
     (nothing converted - TCURR conversion is planned for M07 KPIs only).
 - Deferred to later modules
   - M06 follow-ups: `scripts.extract --reclean` was not run on Azure (Azure e-mails were extracted with the current
-    code, so probably unnecessary); infra/main.bicep sets the image to :latest - make the tag a parameter (owner asked,
-    later); the admin key is needed to call Process now (owner reads it from Key Vault in their own terminal).
+    code, so probably unnecessary); infra/main.bicep image tag is now a parameter (cold-start work); the admin key is needed to call Process now (owner reads it from Key Vault in their own terminal).
   - M07: work-item API with filters / KPIs, USD conversion via TCURR, allowed actions per role.
   - M08: Knowledge Base page must use the recalculated worked example (NONE 56.4 % / NEAR 83.7 % / EXACT 95.3 %
     = max(fast path 92, formula)) - the prototype's 85.34 % does not follow raw / 0.90; fast-path text =

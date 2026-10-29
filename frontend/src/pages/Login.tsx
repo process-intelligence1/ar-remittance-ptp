@@ -5,8 +5,8 @@ import { waitForServer, type ServerState } from "../auth/warmup";
 import type { DemoUser } from "../data";
 import { ROLE_LABELS } from "../data/labels";
 
-export const STARTING_TEXT = "Starting the server… (up to 30 s after idle)";
-export const SLOW_TEXT = "Taking longer than usual - still trying. If this lasts, reload the page.";
+export const STARTING_TEXT = "Starting the server... this can take up to 1 minute after a quiet period";
+export const SLOW_TEXT = "Still starting - please wait or click Retry";
 
 export function LiveEnded() {
   const demoUrl = new URL("../", window.location.origin + import.meta.env.BASE_URL).toString();
@@ -30,6 +30,7 @@ export default function Login() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0); // "Retry" starts the wait again
   const loaded = useRef(false);
   const [params] = useSearchParams();
   const next = params.get("next");
@@ -42,7 +43,7 @@ export default function Login() {
     const ctl = new AbortController();
     void waitForServer(ds, { signal: ctl.signal, onState: setState });
     return () => ctl.abort();
-  }, [ds, ended]);
+  }, [ds, ended, attempt]);
 
   useEffect(() => {
     if (state !== "ready" || loaded.current) return;
@@ -86,6 +87,11 @@ export default function Login() {
           <div className={`server-status ${state}`} role="status">
             <span className="spinner" aria-hidden="true" />
             {state === "slow" ? SLOW_TEXT : STARTING_TEXT}
+            {state === "slow" && (
+              <button type="button" onClick={() => { setState("starting"); setAttempt((n) => n + 1); }} style={{ marginLeft: "auto" }}>
+                Retry
+              </button>
+            )}
           </div>
         )}
         {expiredMessage && <div className="error-text">{expiredMessage}</div>}
