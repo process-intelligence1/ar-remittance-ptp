@@ -16,10 +16,12 @@ Reference material in the repo:
 
 ---
 
-## Deadline, hosting and working style (decided 29 Oct 2026)
-- **Everything done by 10 Nov 2026.** The Claude plan ends 17 Nov; the Azure free account ends ~25 Nov and will NOT be
-  upgraded (never click Upgrade). Azure stays until ~25 Nov; the permanent shareable demo is **snapshot mode on
-  GitHub Pages (M15, finish by 7 Nov)**. The worker is host-neutral (`python -m app.worker --once`), so hosting can move.
+## Order, quality, hosting and working style
+- **Quality first, no target dates.** A module is done only when ALL its "Done when" checks pass. Module order:
+  **M07, M08, M09, M10, M11, M15, M13, M14** (M12 is dropped; M01-M06 are done).
+- **Hosting:** Azure runs the live demo while the free account lasts (it ends ~25 Nov and is never upgraded - never click
+  Upgrade). The permanent shareable demo is **snapshot mode on GitHub Pages (M15)**, exported while Azure still runs.
+  The worker is host-neutral (`python -m app.worker --once`), so hosting can move.
 - **Working style (saves usage):** explanations one short line; summaries under 10 lines; test results as counts
   (details only for failures); do not re-read large files - search them.
 
@@ -47,9 +49,9 @@ the exact command to run myself in a separate terminal (use `Read-Host` + right-
 
 ---
 
-## MVP scope (target 9 Nov 2026)
-M01 → M08 plus the simple demo login in M08. After that: M09, M10 (lean), M11, M13 (lite), M14, and M15 (snapshot,
-finish by 7 Nov). M12 is dropped. Everything done by 10 Nov 2026.
+## Scope
+M01 → M08 plus the demo login in M08 are the MVP. After that, in this order: M09, M10 (lean), M11, M15 (snapshot),
+M13 (lite), M14. M12 is dropped.
 
 ---
 
@@ -187,9 +189,11 @@ customer 102419 / SGD 8,300; a re-sent sample becomes DUPLICATE.
 - `app/pipeline.py`: email → parse (M02) → classify (M03) → extract (M04) → match (M05) → audit.
   Each stage idempotent; failures recorded on the e-mail and retried via `ar.job` (max 3).
 - `app/worker.py`: `--once` (poll Gmail, process queued jobs, PTP checks) and loop mode locally.
-- Azure: Container Apps **Job** on a 5-minute schedule, 0.5 vCPU / 1 GiB, same image,
-  `python -m app.worker --once`; keep monthly usage inside the free grant (show the maths).
-- API endpoint `POST /api/admin/process-now` queues an immediate run.
+- Azure: Container Apps **Job** every 10 minutes (`*/10 * * * *`), 0.5 vCPU / 1 GiB, same image,
+  `python -m app.worker --once`. Measured idle run ~38 s = ~46 % of the monthly free grant (5 minutes would be ~91 %).
+  The worker has no Azure-specific code, so any scheduler can run it.
+- API endpoint `POST /api/admin/process-now` (admin key) starts the worker job immediately through the Azure
+  management API, using the API's managed identity with a start-only custom role assigned on the job resource.
 - Every stage writes `ar.audit_log` entries (actor "system").
 
 **Done when:** a sample sent via M01 appears as processed work items without manual steps, both
@@ -233,8 +237,8 @@ locally and in Azure; a forced failure is retried and visible.
   `Match_Field` + `Match_Level`.
 - Remove the mailbox filter; company codes 1000–6000; region from BSID `XREF2`.
 - Demo login: pick one of the four demo users → API issues a JWT (signing key in Key Vault);
-  buttons shown per role. (Entra ID comes in M12.)
-- The repo and the app are public, so until Entra ID (M12) the demo login ALSO requires a **demo
+  buttons shown per role. This demo login is the final login.
+- The repo and the app are public, so the demo login ALSO requires a **demo
   access code** (Key Vault secret, typed in by presenters; never in the repo or the front-end bundle).
   Without a valid code: no token, no data.
 - Azure: Static Web Apps **Free** tier; GitHub Actions builds and deploys it; API CORS updated.
@@ -245,7 +249,7 @@ locally and in Azure; a forced failure is retried and visible.
 **Done when:** all five screens work on the Azure URL with live data; new sample e-mail appears
 in the Action Queue without refresh; works on a 1366-px laptop screen.
 
-**→ MVP reached. Switch deployments to the manual "Run workflow" button (see CLAUDE.md).**
+**→ MVP reached.**
 
 ## M09 — Actions, simulated SAP update, outbound e-mail
 - Actions per KB table: Confirm & Update SAP, Change / Add details, Reject, Request
@@ -268,12 +272,14 @@ in the Action Queue without refresh; works on a 1366-px laptop screen.
 - `scripts.build_history`: process the history set with business dates spread over the previous 3 months, then play out
   realistic actions (confirm, reject, edit, clarifications, PTP kept/broken) by the four demo users so every invoice has
   an action trail.
-- Snapshot in schema `snap` (copy of `ar.*` and `sap.bsid`/`sap.bsad`); **Reset demo** = truncate + restore.
+- **Reset point** in schema `demo_reset` (copy of `ar.*` and `sap.bsid`/`sap.bsad` after the history is built);
+  **Reset demo** = truncate + restore from it. (Not to be confused with M15 snapshot mode.) History e-mails get
+  `source = 'history'` so M15 can tell them apart from real mail.
 - Demo Control page: Reset demo, Send sample (pick from the live set), business date (+N days), Process now.
   Upload sample (zip/folder) and linking a sender address to a customer **only if time allows**.
 
 ## M12 — DROPPED
-Enterprise login (Entra ID) is not built; the demo login with the access code (M08) is enough.
+Not built. The demo login with the access code (M08) is the final login.
 
 ## M13 — Hardening (lite)
 - Secret scan workflow (gitleaks) kept; Dependabot / dependency alerts switched on; short `docs/SECURITY.md` describing the
@@ -281,16 +287,19 @@ Enterprise login (Entra ID) is not built; the demo login with the access code (M
   no Trivy/App Insights dashboards.
 
 ## M14 — Presenter pack (lite)
-- `docs/PRESENTER_RUNBOOK.md`: the live link (works until ~25 Nov) and the permanent GitHub Pages link, demo script,
+- `docs/PRESENTER_RUNBOOK.md`: the live link (while Azure runs) and the permanent GitHub Pages link, demo script,
   what to click, reset steps. An accuracy summary assembled from the existing reports (M03 / M04 / M05); no dashboard page.
 - Architecture slide content incl. "what production would add" (private networking, HA/DR, real SAP and Exchange
   connectors, Entra ID login).
 
-## M15 — Snapshot mode on GitHub Pages (finish by 7 Nov 2026)
-**Goal:** a permanent, free, shareable demo that needs no server after Azure ends (~25 Nov).
+## M15 — Snapshot mode on GitHub Pages
+**Goal:** a permanent, free, shareable demo that needs no server after Azure ends.
 - Export script `scripts.export_snapshot`: all screen data as static JSON - work items, e-mail texts, attachment files,
   extraction evidence, candidates and score breakdowns, KPI inputs, audit trail, PTP data, Knowledge Base content.
-  **No secrets, no real customer data** (samples and SAP data are synthetic; the repo is public).
+  **Safety:** export ONLY e-mails whose `source` is `sample`, `upload` or `history` (never e-mails that arrived from real
+  senders in the inbox), plus their work items, attachments and audit entries. No secrets.
+- **Before publishing:** run gitleaks over the export, and a check that lists every e-mail address in the export that is
+  not in the sample / customer master data (must be empty). The result is saved as a check report.
 - Front-end built with `VITE_DATA_SOURCE=snapshot` (the data-source layer from M08) and deployed to GitHub Pages by
   GitHub Actions.
 - Actions (confirm, reject, ...) work **in the browser** on the loaded data, with a banner "Demo snapshot - changes reset
@@ -298,3 +307,9 @@ Enterprise login (Entra ID) is not built; the demo login with the access code (M
   taken during a demo update the Dashboard immediately.
 - Outbound e-mails are shown as previews (nothing is sent). Gmail and Process now are hidden.
 - Demo login in snapshot mode: pick a demo user; no API and no access code (the data is public synthetic data).
+
+**Done when:**
+- the GitHub Pages link works in a private / incognito window on another computer;
+- all screens work; actions update the Dashboard; Reset works;
+- no secrets and no real e-mails in the export (check report attached);
+- site size < 300 MB; first load < 5 s.
