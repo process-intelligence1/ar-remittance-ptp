@@ -38,6 +38,10 @@ param corsOrigins string = 'http://localhost:5173'
 @description('Demo business date used by all rules.')
 param businessDate string = '2026-10-28'
 
+@description('Cron schedule (UTC) of the worker job. Every 5 minutes keeps the monthly free grant; see docs/modules/M06_pipeline.md.')
+param workerCron string = '*/5 * * * *'
+
+var workerJobName = 'ar-worker'
 var tags = {
   project: 'ar-demo'
   cost: 'free-tier'
@@ -249,6 +253,59 @@ resource ownerKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!emp
   }
 }
 
+// Settings the API and the worker job share (the worker is the same image with another command)
+var commonEnv = [
+  {
+    name: 'DATABASE_URL'
+    secretRef: 'database-url'
+  }
+  {
+    name: 'ENVIRONMENT'
+    value: 'demo'
+  }
+  {
+    name: 'BUSINESS_DATE'
+    value: businessDate
+  }
+  {
+    name: 'CORS_ORIGINS'
+    value: corsOrigins
+  }
+  {
+    name: 'OUTBOUND_MODE'
+    value: 'redirect'
+  }
+  {
+    name: 'OUTBOUND_REDIRECT_TO'
+    value: 'processintelligence1@gmail.com'
+  }
+  {
+    name: 'GMAIL_TOKEN_JSON'
+    secretRef: 'gmail-token'
+  }
+  {
+    name: 'STORAGE_BACKEND'
+    value: 'azure_blob'
+  }
+  {
+    name: 'AZURE_STORAGE_ACCOUNT_URL'
+    value: storage.properties.primaryEndpoints.blob
+  }
+  {
+    name: 'AZURE_STORAGE_CONTAINER'
+    value: filesContainer.name
+  }
+  {
+    name: 'AZURE_CLIENT_ID'
+    value: apiIdentity.properties.clientId
+  }
+  {
+    // the laptop and Azure share one inbox: only Azure polls
+    name: 'POLLER_ENABLED'
+    value: 'true'
+  }
+]
+
 // ---------------------------------------------------------------------------
 // Container App "ar-api": scale to zero, max 1 replica, 0.25 vCPU / 0.5 GiB
 // ---------------------------------------------------------------------------
@@ -301,61 +358,25 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: [
-            {
-              name: 'DATABASE_URL'
-              secretRef: 'database-url'
-            }
-            {
-              name: 'ENVIRONMENT'
-              value: 'demo'
-            }
-            {
-              name: 'BUSINESS_DATE'
-              value: businessDate
-            }
-            {
-              name: 'CORS_ORIGINS'
-              value: corsOrigins
-            }
-            {
-              name: 'OUTBOUND_MODE'
-              value: 'redirect'
-            }
-            {
-              name: 'OUTBOUND_REDIRECT_TO'
-              value: 'processintelligence1@gmail.com'
-            }
-            {
-              name: 'GMAIL_TOKEN_JSON'
-              secretRef: 'gmail-token'
-            }
-            {
-              name: 'STORAGE_BACKEND'
-              value: 'azure_blob'
-            }
-            {
-              name: 'AZURE_STORAGE_ACCOUNT_URL'
-              value: storage.properties.primaryEndpoints.blob
-            }
-            {
-              name: 'AZURE_STORAGE_CONTAINER'
-              value: filesContainer.name
-            }
-            {
-              name: 'AZURE_CLIENT_ID'
-              value: apiIdentity.properties.clientId
-            }
-            {
-              // the laptop and Azure share one inbox: only Azure polls
-              name: 'POLLER_ENABLED'
-              value: 'true'
-            }
+          env: concat(commonEnv, [
             {
               name: 'ADMIN_API_KEY'
               secretRef: 'admin-api-key'
             }
-          ]
+            {
+              // "Process now" starts the worker job through the Azure management API (see workerStarterRole)
+              name: 'AZURE_SUBSCRIPTION_ID'
+              value: subscription().subscriptionId
+            }
+            {
+              name: 'AZURE_RESOURCE_GROUP'
+              value: resourceGroup().name
+            }
+            {
+              name: 'WORKER_JOB_NAME'
+              value: workerJobName
+            }
+          ])
         }
       ]
       scale: {
@@ -381,6 +402,103 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
   ]
 }
 
+// ---------------------------------------------------------------------------
+// Container Apps JOB "ar-worker" (M06): the same image, `python -m app.worker --once`, on a schedule.
+// It reads Gmail, then runs read -> classify -> extract -> match for every waiting e-mail.
+// 0.5 vCPU / 1 GiB, one run at a time, no job-level retries (retries are kept in the ar.job table).
+// ---------------------------------------------------------------------------
+resource workerJob 'Microsoft.App/jobs@2024-03-01' = if (deployApp) {
+  name: workerJobName
+  location: location
+  tags: tags
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${apiIdentity.id}': {}
+    }
+  }
+  properties: {
+    environmentId: cae.id
+    configuration: {
+      triggerType: 'Schedule'
+      replicaTimeout: 600
+      replicaRetryLimit: 0
+      scheduleTriggerConfig: {
+        cronExpression: workerCron
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+      secrets: [
+        {
+          name: 'database-url'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/database-url'
+          identity: apiIdentity.id
+        }
+        {
+          name: 'gmail-token'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/gmail-token'
+          identity: apiIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'ar-worker'
+          image: containerImage
+          command: [ 'python', '-m', 'app.worker' ]
+          args: [ '--once' ]
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: commonEnv
+        }
+      ]
+    }
+  }
+  dependsOn: [
+    apiIdentityKv
+    apiIdentityBlob
+    dbUrlSecret
+  ]
+}
+
+// "Process now" (POST /api/admin/process-now) starts the job right away. The API's identity gets a custom
+// role that contains ONE action - start a job - and the role is assigned on the job resource only
+// (not on the resource group), so it can start nothing else and read nothing.
+resource workerStarterRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
+  name: guid(resourceGroup().id, 'ar-worker-job-starter')
+  properties: {
+    roleName: 'AR Worker Job Starter (${resourceGroup().name})'
+    description: 'Can start executions of Container Apps Jobs, nothing else.'
+    type: 'CustomRole'
+    permissions: [
+      {
+        actions: [
+          'Microsoft.App/jobs/start/action'
+        ]
+        notActions: []
+        dataActions: []
+        notDataActions: []
+      }
+    ]
+    assignableScopes: [
+      resourceGroup().id
+    ]
+  }
+}
+
+resource apiStartsWorker 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployApp) {
+  scope: workerJob
+  name: guid(workerJob.id, apiIdentity.id, workerStarterRole.id)
+  properties: {
+    roleDefinitionId: workerStarterRole.id
+    principalId: apiIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // The app's own system-assigned identity also gets read access (for later use, e.g. Blob/Key Vault from code)
 resource appSystemKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployApp) {
   scope: kv
@@ -396,4 +514,5 @@ output keyVaultName string = kv.name
 output storageAccountName string = storage.name
 output postgresServerName string = pg.name
 output postgresFqdn string = pg.properties.fullyQualifiedDomainName
+output workerJobName string = deployApp ? workerJob.name : ''
 output apiUrl string = deployApp ? 'https://${app!.properties.configuration.ingress.fqdn}' : ''

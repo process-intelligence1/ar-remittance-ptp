@@ -146,7 +146,13 @@ one plain sentence before running it, and summarise results in plain language.
   10 %. Customer identified 215/217; agrees with ADR6 sender 97.6 %, quoted customer no. 98.8 %, owner of exactly
   matched invoices 99.5 %. P03-0193 JP-26-002271 -> 102419 SGD 8,300 (92 % FAST_PATH, Auto). Re-sent sample ->
   DUPLICATE. Fast path applied to 361 rows: formula higher for 283, fast-path value used for 78.
-- Next: M06 pipeline + worker, then M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
+- M06 built locally, NOT yet deployed (see docs/modules/M06_pipeline.md): app/pipeline.py (read -> classify -> extract ->
+  match, resumes at the failed stage, audit per stage), app/jobs.py (ar.job queue, retries 1 min / 5 min, max 3, SKIP LOCKED),
+  app/worker.py (--once / --loop), POST /api/admin/process-now starts the Azure job at once (ARM start with the API's
+  managed identity; custom role "AR Worker Job Starter" = only jobs/start/action, assigned on the job resource), GET
+  /api/admin/jobs, scripts.process. Bicep: Container Apps Job ar-worker (*/5, 0.5 vCPU / 1 GiB) + role + policy types;
+  waits for the owner's OK (policy must be deployed first, then what-if of main.bicep). Tests: 538 pass.
+- Next: finish M06 deploy, then M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
 
 ## Open issues (as of 28 Oct 2026)
 Known weak spots and deferred work - check here before planning a module.

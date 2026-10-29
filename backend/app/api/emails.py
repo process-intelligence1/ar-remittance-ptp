@@ -110,6 +110,39 @@ def poll_now(max_messages: int = Query(50, ge=1, le=200), db: Session = Depends(
             "errors": r.errors}
 
 
+@admin.post("/process-now", status_code=202,
+            summary="Start the worker job now: read Gmail and process waiting e-mails (M06) - needs X-Admin-Key")
+def process_now(requeue_failed: bool = False, db: Session = Depends(get_db)):
+    """Azure: starts a run of the Container Apps Job immediately (does not wait for the 5-minute schedule).
+    requeue_failed=true first gives jobs that ended FAILED a fresh set of attempts."""
+    from app import jobs
+    from app.azure_jobs import WorkerJobStartFailed, WorkerJobUnavailable, start_worker_job
+
+    requeued = jobs.requeue_failed(db) if requeue_failed else 0
+    try:
+        execution = start_worker_job()
+    except WorkerJobUnavailable as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except WorkerJobStartFailed as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {"started": True, "execution": execution, "requeued_failed_jobs": requeued}
+
+
+@admin.get("/jobs", summary="Background jobs and their errors (M06) - needs X-Admin-Key")
+def list_jobs(status: str | None = None, limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db)):
+    from app.models.ar import Job
+
+    q = select(Job).order_by(Job.id.desc())
+    if status:
+        q = q.where(Job.status == status.upper())
+    counts = dict(db.execute(select(Job.status, func.count()).group_by(Job.status)).all())
+    return {"counts": counts,
+            "items": [{"id": j.id, "type": j.job_type, "email_ref": (j.payload or {}).get("email_ref"),
+                       "status": j.status, "attempts": j.attempts, "max_attempts": j.max_attempts,
+                       "run_after": j.run_after, "last_error": j.last_error, "finished_at": j.finished_at}
+                      for j in db.scalars(q.limit(limit))]}
+
+
 @admin.post("/emails/{email_ref}/parse", summary="Read the body and attachments of one e-mail (M02) - needs X-Admin-Key")
 def parse_now(email_ref: str, reparse: bool = False, db: Session = Depends(get_db)):
     from app.documents.service import parse_email

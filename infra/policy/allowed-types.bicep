@@ -10,6 +10,7 @@ param allowedResourceTypes array = [
   'Microsoft.OperationalInsights/workspaces'
   'Microsoft.App/managedEnvironments'
   'Microsoft.App/containerApps'
+  'Microsoft.App/jobs'
   'Microsoft.DBforPostgreSQL/flexibleServers'
   'Microsoft.DBforPostgreSQL/flexibleServers/databases'
   'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules'
@@ -21,6 +22,7 @@ param allowedResourceTypes array = [
   'Microsoft.Storage/storageAccounts/blobServices'
   'Microsoft.Storage/storageAccounts/blobServices/containers'
   'Microsoft.Authorization/roleAssignments'
+  'Microsoft.Authorization/roleDefinitions'
 ]
 
 // Built-in definition "Allowed resource types"

@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     azure_di_endpoint: str = ""    # only used when OCR_ENGINE=azure_di
     azure_di_key: str = ""
 
+    # --- Worker job (M06) -----------------------------------------------------------
+    # Set by Bicep in Azure. "Process now" starts this Container Apps Job through the Azure management API
+    # with the API's managed identity (custom role that can start only this job). Empty = not in Azure.
+    azure_subscription_id: str = ""
+    azure_resource_group: str = ""
+    worker_job_name: str = ""
+    worker_time_budget_s: int = 180  # the worker starts no new e-mail after this many seconds
+
     # --- Front-end origin allowed to call the API (CORS) -------------------------
     cors_origins: str = "http://localhost:5173"
 
