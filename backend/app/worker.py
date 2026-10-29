@@ -1,6 +1,6 @@
 """The worker: polls Gmail, then processes queued e-mails.
 
-    python -m app.worker --once                 # one round (Azure: the scheduled Container Apps Job)
+    python -m app.worker --once                 # one round: run this from any scheduler (cron, a cloud job, Task Scheduler)
     python -m app.worker --loop --interval 60   # keep going (laptop)
     python -m app.worker --once --force-poll    # poll Gmail from here even though POLLER_ENABLED=false
 
@@ -95,7 +95,7 @@ def work_jobs(db: Session, summary: RoundSummary, budget_s: float) -> None:
             email = db.scalar(select(EmailMessage).where(EmailMessage.email_ref == ref))
             if email is None:
                 raise LookupError(f"e-mail {ref} not found")
-            process_email(db, email)
+            process_email(db, email, last_attempt=job.attempts >= job.max_attempts)
             jobs.complete(db, job)
             summary.done += 1
         except Exception as exc:
@@ -130,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     if args.force_poll:
-        print("WARNING: --force-poll - this laptop now takes new inbox e-mails away from Azure.")
+        print("WARNING: --force-poll - this laptop now takes new inbox e-mails away from the hosted worker.")
     while True:
         with SessionLocal() as db:
             s = run_once(db, force_poll=args.force_poll)

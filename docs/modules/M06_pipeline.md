@@ -37,7 +37,12 @@ E-mails now move through the whole chain by themselves:
   to every 10 minutes. To be checked against real run times after the first Azure days.
 
 ## Limits / decisions
-- An e-mail with one unreadable attachment fails the read stage, is retried 3 times, then stays FAILED and
-  visible (it is not auto-processed from the body alone). Re-run with `process-now?requeue_failed=true`.
+- Unreadable attachment: the read stage fails and is retried. On the LAST attempt the pipeline carries on with the
+  body and the readable attachments; every resulting row gets the review reason "Attachment unreadable" and is
+  never auto-processed (an AUTO_PROCESS row becomes MANUAL_REVIEW / PENDING_REVIEW). `email.error` keeps
+  `ATTACHMENT_UNREADABLE: ...` and the audit log has `ATTACHMENT_UNREADABLE_REVIEW`.
 - Rows an analyst has already acted on are never re-matched (M05 rule); the pipeline treats this as "done".
 - The Gmail poll stays guarded by the existing lock and `POLLER_ENABLED`.
+- Host-neutral: `python -m app.worker --once` has no Azure code and needs only environment settings (database, Gmail,
+  storage). Any scheduler can run it (cron, Task Scheduler, another cloud's job). The only Azure-specific code is the
+  optional `app/azure_jobs.py` behind `POST /api/admin/process-now`; elsewhere that endpoint answers 409.

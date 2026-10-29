@@ -151,7 +151,7 @@ one plain sentence before running it, and summarise results in plain language.
   app/worker.py (--once / --loop), POST /api/admin/process-now starts the Azure job at once (ARM start with the API's
   managed identity; custom role "AR Worker Job Starter" = only jobs/start/action, assigned on the job resource), GET
   /api/admin/jobs, scripts.process. Bicep: Container Apps Job ar-worker (*/5, 0.5 vCPU / 1 GiB) + role + policy types;
-  waits for the owner's OK (policy must be deployed first, then what-if of main.bicep). Tests: 538 pass.
+  waits for the owner's OK (policy must be deployed first, then what-if of main.bicep). Last attempt with an unreadable attachment -> rows to review ("Attachment unreadable"). Worker is host-neutral (no Azure code; only the API's Process-now trigger is Azure-specific). Policy updated in Azure 29 Oct. Tests: 543 pass.
 - Next: finish M06 deploy, then M07-M08 (see docs/BUILD_PLAN.md). MVP target 9 Nov 2026.
 
 ## Open issues (as of 28 Oct 2026)

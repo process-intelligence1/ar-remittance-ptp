@@ -222,3 +222,74 @@ def test_start_worker_job_calls_the_job_start_endpoint_with_a_managed_identity_t
     assert seen["method"] == "POST" and seen["auth"] == "Bearer TOKEN"
     assert seen["url"] == ("https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-x/providers/"
                            "Microsoft.App/jobs/ar-worker/start?api-version=2024-03-01")
+
+
+# --------------------------------------------------------------------------- unreadable attachment, last attempt
+def _fake_parse_with_one_bad_attachment(monkeypatch):
+    real = pipeline.parse_email
+
+    def parse(db, email, storage=None, **k):
+        s = real(db, email, storage=storage, **k)
+        s.failed, s.errors = 1, ["scan.pdf: timeout"]
+        return s
+
+    monkeypatch.setattr(pipeline, "parse_email", parse)
+
+
+def test_unreadable_attachment_before_the_last_attempt_still_fails_and_retries(db, storage, monkeypatch):
+    e = _stored(db, storage, "R01-0007", "m06-u1")
+    _fake_parse_with_one_bad_attachment(monkeypatch)
+    with pytest.raises(PipelineError) as exc:
+        process_email(db, e, storage, last_attempt=False)
+    assert exc.value.stage == "PARSE"
+
+
+def test_last_attempt_continues_without_the_unreadable_attachment_and_sends_rows_to_review(db, storage, monkeypatch):
+    e = _stored(db, storage, "R01-0007", "m06-u2")
+    _fake_parse_with_one_bad_attachment(monkeypatch)
+    r = process_email(db, e, storage, last_attempt=True)
+    assert r.stages_run == ["PARSE", "CLASSIFY", "EXTRACT", "MATCH"] and e.status == "PROCESSED"
+    assert e.error.startswith("ATTACHMENT_UNREADABLE:") and "scan.pdf: timeout" in e.error  # stays visible
+    rows = [w for w in _rows(db, e) if w.decision not in ("DUPLICATE", "OUT_OF_SCOPE")]
+    assert all(w.decision != "AUTO_PROCESS" and w.status != "AUTO_PROCESSED" for w in rows)
+    assert all("Attachment unreadable" in w.review_reasons for w in rows)
+    [a] = _audit(db, e, "ATTACHMENT_UNREADABLE_REVIEW")
+    assert a.actor == "system"
+    assert [x.details["stage"] for x in _audit(db, e, "PIPELINE_STAGE_DONE")][0] == "PARSE"
+
+
+def test_route_to_review_downgrades_an_auto_processed_row(db, storage):
+    e = _stored(db, storage, "R01-0007", "m06-u3")
+    process_email(db, e, storage)
+    w = _rows(db, e)[0]
+    w.decision, w.status, w.sla_due_at, w.review_reasons = "AUTO_PROCESS", "AUTO_PROCESSED", None, []
+    e.error = "ATTACHMENT_UNREADABLE: test"
+    pipeline._route_to_review(db, e, [w])
+    assert (w.decision, w.status) == ("MANUAL_REVIEW", "PENDING_REVIEW")
+    assert w.review_reasons == ["Attachment unreadable"] and w.recommended_action == "Add / Update Invoice Details"
+    assert w.sla_due_at is not None
+
+
+def test_worker_passes_last_attempt_only_on_the_final_try(db, storage, monkeypatch):
+    e = _stored(db, storage, "R01-0007", "m06-u4")
+    j = jobs.enqueue(db, jobs.PROCESS_EMAIL, {"email_ref": e.email_ref})
+    flags = []
+
+    def spy(db_, email, storage=None, last_attempt=False):
+        flags.append(last_attempt)
+        raise PipelineError("PARSE", "x")
+
+    monkeypatch.setattr(worker, "process_email", spy)
+    s = worker.RoundSummary()
+    for _ in range(3):
+        j.run_after = datetime.now(timezone.utc)
+        db.commit()
+        worker.work_jobs(db, s, 60)
+    assert flags == [False, False, True]
+
+
+def test_worker_module_has_no_azure_logic():
+    import inspect
+
+    src = inspect.getsource(worker) + inspect.getsource(jobs) + inspect.getsource(pipeline)
+    assert "azure" not in src.lower()
