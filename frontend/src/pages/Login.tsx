@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { waitForServer, type ServerState } from "../auth/warmup";
-import type { DemoUser } from "../data";
+import { NetworkError, type DemoUser } from "../data";
 import { ROLE_LABELS } from "../data/labels";
 
 export const STARTING_TEXT = "Starting the server... this can take up to 1 minute after a quiet period";
@@ -67,7 +67,12 @@ export default function Login() {
       await login(user, code);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");
-      setCode("");
+      if (err instanceof NetworkError) {
+        setState("starting"); // the server went away (restart / deploy): wait for it again before the next try
+        setAttempt((n) => n + 1);
+      } else {
+        setCode("");
+      }
     } finally {
       setBusy(false);
     }

@@ -191,6 +191,8 @@ export interface ActionResult {
 
 export class NotAvailableError extends Error {}
 export class UnauthorizedError extends Error {}
+/** The server could not be reached at all (restarting, offline) - not an answer such as 401 or 500. */
+export class NetworkError extends Error {}
 
 export interface DataSource {
   readonly kind: "live" | "snapshot";

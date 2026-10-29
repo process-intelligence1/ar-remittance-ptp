@@ -100,6 +100,23 @@ describe("login screen", () => {
   });
 });
 
+describe("sign-in when the server cannot be reached", () => {
+  it("shows a clear message instead of 'Failed to fetch', waits for the server again, and keeps the typed code", async () => {
+    const { NetworkError } = await import("../data");
+    const login = vi.fn().mockRejectedValue(new NetworkError("Could not reach the server - it may be restarting. Please wait a moment and try again."));
+    const health = vi.fn(async () => true);
+    renderApp(fakeDs({ login, health }), "#/login");
+    const code = await screen.findByLabelText("Access code");
+    await waitFor(() => expect(code).toBeEnabled());
+    fireEvent.change(code, { target: { value: "abc" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not reach the server");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Failed to fetch");
+    await waitFor(() => expect(health.mock.calls.length).toBeGreaterThan(1)); // the wake-up check ran again
+    expect(code).toHaveValue("abc");
+  });
+});
+
 describe("data layer", () => {
   it("builds query strings without empty values", () => {
     expect(toQuery({ a: "x y", b: "", c: undefined, d: 0 })).toBe("?a=x+y&d=0");
@@ -119,6 +136,12 @@ describe("data layer", () => {
     expect(calls[0].headers.get("Authorization")).toBe("Bearer abc");
     expect(calls[0].url).toContain("/api/work-items?page=2");
     expect(out).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("turns a failed fetch (server unreachable) into a clear NetworkError", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    await expect(new LiveDataSource("https://api.example").login("a@b.c", "x")).rejects.toThrow(/Could not reach the server/);
     vi.unstubAllGlobals();
   });
 

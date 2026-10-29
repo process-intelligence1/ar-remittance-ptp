@@ -9,6 +9,7 @@ import {
   type Filters,
   type Kpis,
   type ListParams,
+  NetworkError,
   NotAvailableError,
   type Page,
   type Session,
@@ -50,7 +51,12 @@ export class LiveDataSource implements DataSource {
     const headers = new Headers(init.headers);
     if (init.body) headers.set("Content-Type", "application/json");
     if (auth && this.token) headers.set("Authorization", `Bearer ${this.token}`);
-    const res = await fetch(this.baseUrl + path, { ...init, headers });
+    let res: Response;
+    try {
+      res = await fetch(this.baseUrl + path, { ...init, headers });
+    } catch {
+      throw new NetworkError("Could not reach the server - it may be restarting. Please wait a moment and try again.");
+    }
     if (res.status === 401 && auth) {
       this.unauthorizedHandler();
       throw new UnauthorizedError("Session expired - sign in again.");
