@@ -205,7 +205,7 @@ one plain sentence before running it, and summarise results in plain language.
   after idle ~31 s = scale-from-zero cold start).
 - M08 built and tested locally, NOT yet published (see docs/modules/M08_frontend.md): frontend/ (React + Vite + TS, prototype CSS
   copied unchanged, TanStack Query/Table, Chart.js), data-source layer src/data (live + snapshot placeholder), login screen with
-  /api/health warm-up message, Dashboard, Action Queue (Match_Field / Match_Level, bulk select), Record Detail with PDF page
+  /api/health warm-up message, Dashboard, Action Queue (bulk select; Match_Field / Match_Level columns removed 3 Nov, Promise Date column added), Record Detail with PDF page
   viewer + evidence highlights, Audit Trail, Knowledge Base (Invoice Number Match, 56.4/83.7/95.3 example), Demo Control
   placeholder, /api/changes polling (visible tab only), LIVE_ENDED page. Hosting = GitHub Pages (.github/workflows/frontend.yml:
   root = pages/ landing + privacy.html + terms.html, /live/ = live edition; API URL from repo variable API_BASE_URL). Backend:

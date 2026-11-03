@@ -19,7 +19,7 @@ All data and all actions go through one `DataSource` interface (`types.ts`); scr
   1000-6000, status, classification; no mailbox filter), Performance Stability, Distribution across dimensions, Processing
   trend (month / quarter). Rows without an exchange rate are noted, never counted as 0.
 - **Action Queue** - one row per invoice, server-side paging / sorting / filtering, column picker (remembered), new columns
-  `Match_Field` + `Match_Level`, bulk select (only actions valid for every selected row are offered; "Confirm & Extract to
+  `Promise Date` (the Match_Field / Match_Level columns were removed; they stay in the Record Detail), bulk select (only actions valid for every selected row are offered; "Confirm & Extract to
   Excel (n)"), row click opens the record.
 - **Record Detail** (drawer) - original e-mail, attachment viewer (PDF pages as images via the signed link; extracted values
   highlighted from the evidence boxes), extracted fields, score breakdown (invoice match x0.35 ... confidence = max(fast

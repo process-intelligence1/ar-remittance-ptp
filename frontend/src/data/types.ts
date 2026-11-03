@@ -68,6 +68,8 @@ export interface WorkItemRow {
   classification: string;
   line_type: string | null;
   invoice_ref: string | null;
+  promise_date?: string | null; // a payment plan (instalments) makes one row per instalment for the same invoice
+  line_no?: number;
   match_field: string | null;
   match_level: string | null;
   bsid_match: boolean;

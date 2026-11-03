@@ -158,12 +158,13 @@ describe("data layer", () => {
 });
 
 describe("Action Queue", () => {
-  it("shows Match_Field and Match_Level columns, no mailbox filter, and company codes 1000-6000", async () => {
+  it("has no Match_Field / Match_Level columns, shows the Promise Date, no mailbox filter, and company codes 1000-6000", async () => {
     signedIn();
     renderApp(fakeDs(), "#/queue");
     expect(await screen.findByText("ENT-000001")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Match_Field" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Match_Level" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Match_Field" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Match_Level" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Promise Date" })).toBeInTheDocument();
     expect(screen.queryByText(/mailbox/i)).not.toBeInTheDocument();
     const co = screen.getByLabelText("Company Code");
     expect(within(co).getAllByRole("option").map((o) => o.textContent)).toEqual(["All Company Codes", "1000", "2000", "3000", "4000", "5000", "6000"]);

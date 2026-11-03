@@ -234,7 +234,8 @@ locally and in Azure; a forced failure is retried and visible.
   example is recalculated as in docs/modules/M05_matching.md: NONE 56.4 % Exception / NEAR 83.7 % Manual
   Review / EXACT 95.3 % = max(fast path 92 %, formula 95.3 %) Auto Process; fast-path text = "max(fast-path
   value, formula)"), Demo Control placeholder. Columns `Digit_Match_Length` →
-  `Match_Field` + `Match_Level`.
+  `Match_Field` + `Match_Level` (**removed from the Action Queue table on 3 Nov**: the match field and level are shown in the Record
+  Detail only; the table has a **Promise Date** column instead, so the instalments of a payment plan can be told apart).
 - Remove the mailbox filter; company codes 1000–6000; region from BSID `XREF2`.
 - Demo login: pick one of the four demo users → API issues a JWT (signing key in Key Vault);
   buttons shown per role. This demo login is the final login.

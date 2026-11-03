@@ -126,7 +126,7 @@ def summary(w: WorkItem, e: EmailMessage, user: CurrentUser, rates, original_ent
         "id": w.id, "entry_id": w.entry_id, "email_ref": e.email_ref, "received_at": e.received_at,
         "sender_email": e.sender_email, "subject": e.subject, "sample_code": e.sample_code,
         "customer_name": w.customer_name, "kunnr": w.kunnr, "company_code": w.bukrs, "region": w.region,
-        "classification": w.final_classification, "line_type": w.line_type, "invoice_ref": w.invoice_ref_raw,
+        "classification": w.final_classification, "line_type": w.line_type, "invoice_ref": w.invoice_ref_raw, "promise_date": w.promise_date, "line_no": w.line_no,
         "match_field": w.match_field, "match_level": w.match_level, "bsid_match": w.bsid_match_flag,
         "amount": w.amount, "currency": w.currency, **usd_fields(rates, w, e),
         "confidence": w.confidence_score, "confidence_source": w.confidence_source, "decision": w.decision,
