@@ -25,7 +25,7 @@ azure-identity==1.27.0
 # Outbound e-mail templates (M09)
 Jinja2==3.1.6
 # Demo login tokens and signed download links (M07)
-PyJWT==2.10.1
+PyJWT==2.15.1
 # Document reading and OCR (M02)
 pdfplumber==0.11.10
 python-docx==1.2.0

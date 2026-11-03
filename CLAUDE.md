@@ -236,6 +236,9 @@ one plain sentence before running it, and summarise results in plain language.
   "Exported cases" Excel view + .xlsx (ExcelJS, lazy), Dashboard buckets now by DECISION (not status). Migration d5f2a8b3e006.
   Tests: 588 back-end + 66 front-end. Still to do before "done": check in a real browser, Gmail send scope + token renewal, deploy.
 - Next: finish M09 checks (above), then M10 lean, M11, M15, M13 lite, M14.
+- Dependabot triage 3 Nov (docs/reports/dependabot_triage_2026-11-03.md): shipped critical/high fixed (PyJWT 2.15.1, react-router-dom 6.30.6);
+  left = medium only (react-router 7 major, minimatch/uuid inside the ExcelJS bundle); dev/build-only (vite, vitest, tinypool: 4 critical,
+  1 high) are listed for M13.
 
 ## Open issues (as of 3 Nov 2026)
 Known weak spots and deferred work - check here before planning a module.
