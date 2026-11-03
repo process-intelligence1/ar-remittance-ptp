@@ -5,6 +5,8 @@ import {
   type BulkOutcome,
   type BulkRequest,
   type EmailPreview,
+  type PtpList,
+  type PtpRunResult,
   type ExportedCases,
   type AttachmentLayout,
   type AuditRow,
@@ -84,5 +86,11 @@ export class SnapshotDataSource implements DataSource {
   }
   async markExported(_ids?: string[]): Promise<number> {
     throw later("Exported cases");
+  }
+  async ptpList(_p: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList> {
+    throw later("PTP Tracker");
+  }
+  async runPtpChecks(): Promise<PtpRunResult> {
+    throw later("PTP check");
   }
 }

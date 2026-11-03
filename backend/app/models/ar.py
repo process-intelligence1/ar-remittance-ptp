@@ -322,9 +322,16 @@ class PtpCommitment(Base):
     promise_date: Mapped[date] = mapped_column(Date)
     amount: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))
     currency: Mapped[str | None] = mapped_column(String(3))
-    status: Mapped[str] = mapped_column(String(20), default="OPEN")  # OPEN | KEPT | PARTIALLY_KEPT | BROKEN | CANCELLED
-    amount_received: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))
+    status: Mapped[str] = mapped_column(String(20), default="OPEN")  # OPEN | KEPT | PARTIALLY_KEPT | BROKEN | ESCALATED | CANCELLED
+    amount_received: Mapped[Decimal | None] = mapped_column(Numeric(17, 3))  # in the promise currency (M10)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # M10: what the daily check found, and which alerts went out (once each, never re-sent)
+    payments: Mapped[list | None] = mapped_column(JSONB)       # [{entry_id, amount, currency, date, applied}]
+    broken_on: Mapped[date | None] = mapped_column(Date)         # first day the promise counts as broken (promise + grace + 1)
+    alerted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))    # Collections alert queued
+    escalated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Supervisor escalation queued
+    check_note: Mapped[str | None] = mapped_column(String(200))
+    last_checked_on: Mapped[date | None] = mapped_column(Date)  # business date of the last check
     created_at: Mapped[datetime] = _created()
 
 

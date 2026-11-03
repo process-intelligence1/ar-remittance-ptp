@@ -54,6 +54,8 @@ export function fakeDs(over: Partial<DataSource> & { rows?: WorkItemRow[] } = {}
     bsidChoices: async () => [{ id: 7, bukrs: "1000", kunnr: "0000100001", customer_name: "Innova Care", belnr: "9002600125", gjahr: "2026", buzei: "001", xblnr: "INV-1", amount: 100, waers: "USD", bldat: "2026-09-01", source: "customer", selected: false }],
     exportedCases: async () => ({ count: 0, items: [] }),
     markExported: async () => 0,
+    ptpList: async () => ({ business_date: "2026-10-28", grace_days: 3, total: 0, page: 1, page_size: 100, counts: { OPEN: 0, PARTIALLY_KEPT: 0, KEPT: 0, BROKEN: 0, ESCALATED: 0, CANCELLED: 0 }, items: [] }),
+    runPtpChecks: async () => ({ business_date: "2026-10-28", checked: 0, changed: [], alerts: 0, escalations: 0, counts: {} }),
   };
   const { rows: _ignored, ...rest } = over;
   return { ...ds, ...rest };

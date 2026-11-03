@@ -6,6 +6,8 @@ import {
   type BulkOutcome,
   type BulkRequest,
   type EmailPreview,
+  type PtpList,
+  type PtpRunResult,
   type ExportedCases,
   type AttachmentLayout,
   type AuditRow,
@@ -143,6 +145,14 @@ export class LiveDataSource implements DataSource {
 
   exportedCases(): Promise<ExportedCases> {
     return this.request("/api/exports/cases");
+  }
+
+  ptpList(params: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList> {
+    return this.request(`/api/ptp${toQuery({ ...params })}`);
+  }
+
+  runPtpChecks(): Promise<PtpRunResult> {
+    return this.request("/api/ptp/run", { method: "POST", body: JSON.stringify({}) });
   }
 
   async markExported(entryIds?: string[]): Promise<number> {

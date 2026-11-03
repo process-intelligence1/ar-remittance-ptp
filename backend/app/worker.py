@@ -6,7 +6,7 @@
 
 One round: (0) send the e-mails analysts queued (M09), (1) poll Gmail (only where POLLER_ENABLED is true), (2) queue a PROCESS_EMAIL job for every e-mail
 that is not finished and has none, (3) work through due jobs until none is left or the time budget is used,
-(4) PTP checks (placeholder until M10). Several workers may run at once: jobs are claimed with SKIP LOCKED.
+(4) the promise-to-pay check at the business date (M10), then send the alerts it queued. Several workers may run at once: jobs are claimed with SKIP LOCKED.
 """
 import argparse
 import logging
@@ -38,12 +38,15 @@ class RoundSummary:
     unfinished: int = 0  # due jobs left because the time budget ran out
     sent: int = 0        # outbound e-mails sent (M09)
     send_failed: int = 0
+    ptp_changed: int = 0  # promises whose status changed in this round (M10)
+    ptp_alerts: int = 0   # alert / escalation e-mails queued in this round
     errors: list[str] = field(default_factory=list)
 
     def line(self) -> str:
         return (f"poll {self.polled} (stored {self.stored}) | queued {self.queued} | done {self.done} | "
                 f"retry scheduled {self.retried} | failed {self.failed} | released {self.released} | "
-                f"left for next round {self.unfinished} | e-mails sent {self.sent} (failed {self.send_failed})")
+                f"left for next round {self.unfinished} | e-mails sent {self.sent} (failed {self.send_failed}) | "
+                f"promises changed {self.ptp_changed} (alerts {self.ptp_alerts})")
 
 
 def poll_gmail(db: Session, force: bool, summary: RoundSummary) -> None:
@@ -81,9 +84,17 @@ def queue_unfinished(db: Session) -> int:
     return n
 
 
-def ptp_checks(db: Session) -> int:
-    """Daily promise-to-pay checks arrive with M10."""
-    return 0
+def ptp_checks(db: Session, summary: RoundSummary) -> None:
+    """Promise-to-pay check at the business date (M10): kept / partly kept / broken / escalated, alerts queued once each."""
+    from app import ptp
+
+    try:
+        r = ptp.evaluate(db)
+        summary.ptp_changed, summary.ptp_alerts = len(r.changed), r.alerts + r.escalations
+    except Exception as exc:  # the promise check must never stop e-mail processing
+        db.rollback()
+        summary.errors.append(f"ptp: {type(exc).__name__}: {exc}")
+        log.exception("PTP check failed")
 
 
 def work_jobs(db: Session, summary: RoundSummary, budget_s: float) -> None:
@@ -117,7 +128,8 @@ def send_outbound(db: Session, summary: RoundSummary) -> None:
     from app import outbound
 
     try:
-        summary.sent, summary.send_failed = outbound.send_queued(db)
+        sent, failed = outbound.send_queued(db)
+        summary.sent, summary.send_failed = summary.sent + sent, summary.send_failed + failed
     except Exception as exc:
         db.rollback()
         summary.errors.append(f"send: {type(exc).__name__}: {exc}")
@@ -131,7 +143,9 @@ def run_once(db: Session, *, force_poll: bool = False, budget_s: float | None = 
     summary.released = jobs.release_stuck(db)
     summary.queued = queue_unfinished(db)
     work_jobs(db, summary, get_settings().worker_time_budget_s if budget_s is None else budget_s)
-    ptp_checks(db)
+    ptp_checks(db, summary)
+    if summary.ptp_alerts:
+        send_outbound(db, summary)  # the alerts just queued go out in this round
     return summary
 
 

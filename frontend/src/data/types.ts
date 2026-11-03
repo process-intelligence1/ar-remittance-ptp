@@ -350,6 +350,54 @@ export class ActionError extends Error {
   }
 }
 
+export type PtpStatus = "OPEN" | "PARTIALLY_KEPT" | "KEPT" | "BROKEN" | "ESCALATED" | "CANCELLED";
+
+/** One promise to pay (an invoice, or one instalment of a payment plan) in the PTP Tracker. */
+export interface PtpItem {
+  id: number;
+  work_item_id: number;
+  entry_id: string;
+  email_ref: string;
+  sender_email: string | null;
+  customer_name: string | null;
+  kunnr: string | null;
+  company_code: string | null;
+  invoice_ref: string | null;
+  instalment_no: number;
+  promise_date: string;
+  /** promise date + grace days: the last day a payment counts */
+  deadline: string;
+  amount: number | null;
+  currency: string | null;
+  status: PtpStatus;
+  amount_received: number | null;
+  days_overdue: number;
+  payments: { entry_id: string; amount: string | null; currency: string | null; date: string; applied: string }[];
+  alerted_at: string | null;
+  escalated_at: string | null;
+  check_note: string | null;
+  last_checked_on: string | null;
+}
+
+export interface PtpList {
+  business_date: string;
+  grace_days: number;
+  total: number;
+  page: number;
+  page_size: number;
+  counts: Record<PtpStatus, number>;
+  items: PtpItem[];
+}
+
+export interface PtpRunResult {
+  business_date: string;
+  checked: number;
+  changed: string[];
+  alerts: number;
+  escalations: number;
+  counts: Record<string, number>;
+}
+
 export class NotAvailableError extends Error {}
 export class UnauthorizedError extends Error {}
 /** The server could not be reached at all (restarting, offline) - not an answer such as 401 or 500. */
@@ -381,4 +429,8 @@ export interface DataSource {
   exportedCases(): Promise<ExportedCases>;
   /** records exported_at / exported_by for the downloaded cases */
   markExported(entryIds?: string[]): Promise<number>;
+  /** PTP Tracker (M10) */
+  ptpList(params: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList>;
+  /** check every promise now at the business date (same as the worker) */
+  runPtpChecks(): Promise<PtpRunResult>;
 }

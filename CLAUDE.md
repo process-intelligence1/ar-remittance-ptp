@@ -235,7 +235,12 @@ one plain sentence before running it, and summarise results in plain language.
   (app/matching/rescore.py), clarification e-mails (app/outbound.py, job SEND_EMAIL, worker sends, redirect only), reply linking,
   "Exported cases" Excel view + .xlsx (ExcelJS, lazy), Dashboard buckets now by DECISION (not status). Migration d5f2a8b3e006.
   Tests: 588 back-end + 66 front-end. Still to do before "done": check in a real browser, Gmail send scope + token renewal, deploy.
-- Next: finish M09 checks (above), then M10 lean, M11, M15, M13 lite, M14.
+- M10 BUILT on the laptop (3 Nov 2026), committed locally, NOT pushed / deployed - see docs/modules/M10_ptp.md: app/ptp.py checks every promise at
+  the business date (KEPT / PARTIALLY_KEPT / BROKEN / ESCALATED; paid = remittance row for the same invoice or open item except REJECTED /
+  DUPLICATE; 2 % tolerance; TCURR conversion at the payment date; instalments in promise-date order), alert + escalation e-mails once each
+  (redirect only), PTP Tracker screen, GET /api/ptp, POST /api/ptp/run (M11 calls it after moving the date). Migration e7a4b9c1f007.
+  Tests: 606 back-end + 71 front-end. The local DB now also holds sample P03R-0194 (ENT-000874) and PTP audit entries from the browser check.
+- Next: M09 live e-mail check (Request Clarification on the live site), then M11, M15, M13 lite, M14.
 - Dependabot triage 3 Nov (docs/reports/dependabot_triage_2026-11-03.md): shipped critical/high fixed (PyJWT 2.15.1, react-router-dom 6.30.6);
   left = medium only (react-router 7 major, minimatch/uuid inside the ExcelJS bundle); dev/build-only (vite, vitest, tinypool: 4 critical,
   1 high) are listed for M13.

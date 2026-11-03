@@ -92,16 +92,17 @@ def render_clarification(db: Session, w: WorkItem, e: EmailMessage, question: st
 
 
 def queue_message(db: Session, w: WorkItem, e: EmailMessage, *, subject: str, body: str, created_by: str,
-                  kind: str = KIND_CLARIFICATION) -> OutboundMessage:
-    """Store the (possibly edited) e-mail and queue the send job. The recipient is ALWAYS the redirect address."""
+                  kind: str = KIND_CLARIFICATION, intended: str | None = None) -> OutboundMessage:
+    """Store the (possibly edited) e-mail and queue the send job. The recipient is ALWAYS the redirect address.
+    `intended` = who it would go to in production (default: the customer; internal alerts name a role)."""
     s = get_settings()
     if s.outbound_mode != "redirect":
         raise OutboundError("OUTBOUND_MODE must be 'redirect' - the demo never e-mails real customers.")
     subject, body = (subject or "").strip(), (body or "").strip()
     if not subject or not body:
         raise OutboundError("The e-mail needs a subject and a text.")
-    lang = language_for(db, w.kunnr)
-    msg = OutboundMessage(work_item_id=w.id, email_id=e.id, kind=kind, intended_recipient=e.sender_email,
+    lang = language_for(db, w.kunnr) if kind == KIND_CLARIFICATION else "en"  # internal alerts are always English
+    msg = OutboundMessage(work_item_id=w.id, email_id=e.id, kind=kind, intended_recipient=intended or e.sender_email,
                           actual_recipient=s.outbound_redirect_to, subject=subject, body=body, language=lang,
                           template=f"{kind.lower()}_{lang}", status="QUEUED", created_by=created_by)
     db.add(msg)
@@ -136,9 +137,10 @@ def send_message(db: Session, msg: OutboundMessage, service=None) -> OutboundMes
     email = db.get(EmailMessage, msg.email_id) if msg.email_id else None
     try:
         service = service or build_service()
-        mime = build_mime(msg, email.rfc_message_id if email else None)
+        threaded = bool(email) and msg.kind == KIND_CLARIFICATION  # only a clarification joins the customer's e-mail thread
+        mime = build_mime(msg, email.rfc_message_id if threaded else None)
         body = {"raw": base64.urlsafe_b64encode(mime.as_bytes()).decode()}
-        if email and email.thread_id:
+        if threaded and email.thread_id:
             body["threadId"] = email.thread_id
         sent = service.users().messages().send(userId="me", body=body).execute()
         label_id = ensure_label(service, s.gmail_outbound_label)
@@ -148,7 +150,8 @@ def send_message(db: Session, msg: OutboundMessage, service=None) -> OutboundMes
         db.commit()
         raise
     msg.status, msg.error = "SENT", None
-    msg.gmail_message_id, msg.gmail_thread_id = sent.get("id"), sent.get("threadId") or (email.thread_id if email else None)
+    msg.gmail_message_id = sent.get("id")
+    msg.gmail_thread_id = sent.get("threadId") or (email.thread_id if threaded else None)
     msg.sent_at = datetime.now(timezone.utc)
     db.commit()
     return msg

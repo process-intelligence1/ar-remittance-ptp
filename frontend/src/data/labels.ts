@@ -37,6 +37,24 @@ export const STATUS_BADGE: Record<string, string> = {
   IGNORED: "badge-ignored",
 };
 
+export const PTP_STATUS_LABELS: Record<string, string> = {
+  OPEN: "Open",
+  PARTIALLY_KEPT: "Partially kept",
+  KEPT: "Kept",
+  BROKEN: "Broken",
+  ESCALATED: "Escalated",
+  CANCELLED: "Cancelled",
+};
+
+export const PTP_STATUS_BADGE: Record<string, string> = {
+  OPEN: "badge-manual",
+  PARTIALLY_KEPT: "badge-awaiting",
+  KEPT: "badge-auto",
+  BROKEN: "badge-exception",
+  ESCALATED: "badge-escalated",
+  CANCELLED: "badge-ignored",
+};
+
 export const CLASS_LABELS: Record<string, string> = {
   REMITTANCE: "Remittance",
   PTP: "Promise to Pay",

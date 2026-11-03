@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import DemoControl from "./pages/DemoControl";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import Login from "./pages/Login";
+import PtpTracker from "./pages/PtpTracker";
 import Queue from "./pages/Queue";
 
 function Layout() {
@@ -24,7 +25,7 @@ function Layout() {
   useChanges(ds, !!session && ds.kind === "live" && !paused, (n) => toast(`${n} new record${n === 1 ? "" : "s"} arrived`, "info"));
   const refresh = () => {
     resume();
-    for (const key of ["workItems", "kpis", "audit", "workItem"]) void qc.invalidateQueries({ queryKey: [key] });
+    for (const key of ["workItems", "kpis", "audit", "workItem", "ptp"]) void qc.invalidateQueries({ queryKey: [key] });
   };
   const total = useQuery({
     queryKey: ["workItems", "count"],
@@ -50,6 +51,9 @@ function Layout() {
           <NavLink to="/queue" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
             <span className="nav-icon">⚡</span> Action Queue
             <span className="acc-count">{total.data?.total ?? "—"}</span>
+          </NavLink>
+          <NavLink to="/ptp" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
+            <span className="nav-icon">🤝</span> PTP Tracker
           </NavLink>
           <NavLink to="/audit" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
             <span className="nav-icon">📋</span> Audit Trail
@@ -91,6 +95,7 @@ export default function App({ dataSource }: { dataSource?: DataSource }) {
               <Route element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="queue" element={<Queue />} />
+                <Route path="ptp" element={<PtpTracker />} />
                 <Route path="audit" element={<Audit />} />
                 <Route path="kb" element={<KnowledgeBase />} />
                 <Route path="demo" element={<DemoControl />} />
