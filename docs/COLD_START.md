@@ -30,10 +30,26 @@ this work (29 Oct 2026, full 240 MB image, migrations at start): **31 s** once, 
 ## Measurement
 Method: no request for more than 15 minutes (replicas = 0), then one `curl` to `/api/health`; timeline from Azure's start events.
 
-| | Cold start |
+| | Cold start (first `/api/health` after 15+ min idle, zero replicas) |
 |---|---|
-| Before (observed) | 31 s and about 90 s |
-| After, run 1 | _to be measured_ |
-| After, run 2 | _to be measured_ |
+| Before (observed 29 Oct) | 31 s and about 90 s |
+| After, run 1 (3 Nov, 07:38 UTC) | **21.4 s** |
+| After, run 2 (3 Nov, 07:57 UTC) | **24.9 s** |
 
-Image sizes (compressed): before 240 MB (one image) - after: _to be measured_ (api / worker).
+Both are well under the 45 s limit, so the login text stays "up to 1 minute after a quiet period".
+
+Image sizes (compressed): before 240 MB (one image); after **95 MB** (`ar-api`, slim) and **241 MB** (`ar-worker`, full).
+
+Azure start events of run 1 (UTC, the request arrived at 07:38:29):
+| Time | Event | Since request |
+|---|---|---|
+| 07:38:29 | scaled from 0 to 1 replica | 0 s |
+| 07:38:30 | replica assigned to a node | 1 s |
+| 07:38:32 - 07:38:40 | image pulled (99.6 MB, 8.2 s) | 11 s |
+| 07:38:40 - 07:38:46 | container created (platform work, reads Key Vault secrets) | 17 s |
+| 07:38:47 | container started; first start-up probe fails once (Python still importing) | 18 s |
+| about 07:38:50 | health answers | 21.4 s |
+
+Reading: the image pull (8 s) and the platform's container creation (6 s) are about two thirds of the wait and are not our code;
+the app itself needs about 3 s from start to the first answer (lazy imports, compiled code, no migration at start-up).
+Not tried (not needed, and each would need an owner decision): more CPU for the API, or an always-on window.

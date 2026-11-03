@@ -212,7 +212,7 @@ one plain sentence before running it, and summarise results in plain language.
   /api/emails behind login, PDF page-image endpoint, CORS origin https://process-intelligence1.github.io (Bicep parameter, not
   yet deployed). Idle: polling pauses after 5 min ("Paused - click to refresh"), auto sign-out after 60 min, hash routes + login?next= keep shared links / F5 working. Tests: 27 front-end + 563 back-end. Checked locally in the browser (login, dashboard, queue, detail with
   highlighted PDF values). To do for "done": enable Pages, set variable API_BASE_URL, deploy CORS, push, check on the live site.
-- Cold-start work (built locally, NOT yet deployed; see docs/COLD_START.md): two images from one Dockerfile - ar-api (slim, no OCR
+- Cold-start work (DEPLOYED 3 Nov, tag 69b50ea; see docs/COLD_START.md; measured 21.4 s and 24.9 s after 15+ min idle, before 31 s / ~90 s; images 95 MB api / 241 MB worker): two images from one Dockerfile - ar-api (slim, no OCR
   libraries, PyMuPDF kept; target api) and ar-worker (full; target worker); migrations moved out of container start-up into the
   manual job ar-migrate (run by the deploy workflow inside Azure before the new API; DB firewall stays closed to GitHub); Bicep
   parameter imageTag (commit SHA, no :latest) for ar-api / ar-worker / ar-migrate, deploy.ps1 passes the running tag (-ImageTag
