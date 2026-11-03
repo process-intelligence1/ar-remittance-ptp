@@ -127,12 +127,14 @@ one plain sentence before running it, and summarise results in plain language.
   Azure account processintelligence1@outlook.com (Free Trial, spending limit on).
   Code deploys: push to main -> .github/workflows/deploy.yml (OIDC, environment "demo"; the build runs,
   then the deploy WAITS for the owner's approval - required reviewer). Infra deploys: .\infra\deploy.ps1 [-WhatIf] (rotates DB password each run).
-  Image ghcr.io/process-intelligence1/ar-api is PUBLIC (240 MB compressed): no GHCR pull token (removed from
-  Bicep + Key Vault 27 Oct 2026). Run deploy.ps1 with -NoClientIp (the laptop uses its local database).
+  Images ghcr.io/process-intelligence1/ar-api (slim, 95 MB) and ar-worker (full, 241 MB) are PUBLIC: no GHCR pull token (removed from
+  Bicep + Key Vault 27 Oct 2026). Run deploy.ps1 with -NoClientIp (the laptop uses its local database) and -ImageTag <commit sha> when the images change
+  (default = the tag the API runs now).
 - M01 done (Gmail ingestion + sample sender) - see docs/modules/M01_gmail_ingestion.md.
   Storage account stardemosnjjnahqgx3b4 / container ar-files; Gmail token in Key Vault "gmail-token"
   (Google app in TESTING mode: token expires ~3 Nov 2026 -> re-run scripts.gmail_auth + upload).
-  Container runs `alembic upgrade head` on start. Tests: `python -m pytest` in backend (525 pass).
+  Database migrations run in the one-off Container Apps job ar-migrate (started by the deploy workflow), NOT at container
+  start (since 3 Nov). Tests: `python -m pytest` in backend (571 pass on 3 Nov).
   Whole inbox is processed (NO date cut-off) except rule "ignored_senders" = ONLY the domains
   github.com, google.com, accounts.google.com, microsoft.com, azure.com, anthropic.com, claude.ai,
   claude.com (+ subdomains); NO address patterns (noreply@ ERP senders send real remittances, e.g.
@@ -196,40 +198,42 @@ one plain sentence before running it, and summarise results in plain language.
   backlog incl. OCR 134 s; 5-minute schedule would use 91 % of the free grant, 10 minutes uses ~46 %. Real test: R19-0116
   sent from the laptop -> 2 AUTO_PROCESS work items; the 12 older Azure e-mails (R21-R32) all processed. Tests: 543 pass.
   The Azure policy now also allows Microsoft.App/jobs + Microsoft.Authorization/roleDefinitions.
-- M07 built and tested locally (see docs/modules/M07_workbench_api.md): demo login (POST /api/auth/demo-login, access code +
+- M07 done, deployed bddbbf8 (see docs/modules/M07_workbench_api.md): demo login (POST /api/auth/demo-login, access code +
   JWT, 10 h token, rate limit 10/min/IP, audited), /api/work-items (list + detail with signed 5-min attachment links),
   /api/kpis (USD via TCURR latest-on-or-before + TCURX decimals; rows without rate flagged), /api/audit, /api/changes
   (polling, no SSE), role-aware allowed_actions. New Key Vault secrets demo-access-code + jwt-secret (owner creates them).
   work_item.region added (migration). Tests: 562 pass. DEPLOYED (bddbbf8) and checked on Azure with scripts.check_api
   (login, list, detail, signed file link, KPIs, audit, changes all OK; 401 without token; 429 after 10 attempts; first call
   after idle ~31 s = scale-from-zero cold start).
-- M08 built and tested locally, NOT yet published (see docs/modules/M08_frontend.md): frontend/ (React + Vite + TS, prototype CSS
-  copied unchanged, TanStack Query/Table, Chart.js), data-source layer src/data (live + snapshot placeholder), login screen with
-  /api/health warm-up message, Dashboard, Action Queue (bulk select; Match_Field / Match_Level columns removed 3 Nov, Promise Date column added), Record Detail with PDF page
-  viewer + evidence highlights, Audit Trail, Knowledge Base (Invoice Number Match, 56.4/83.7/95.3 example), Demo Control
-  placeholder, /api/changes polling (visible tab only), LIVE_ENDED page. Hosting = GitHub Pages (.github/workflows/frontend.yml:
-  root = pages/ landing + privacy.html + terms.html, /live/ = live edition; API URL from repo variable API_BASE_URL). Backend:
-  /api/emails behind login, PDF page-image endpoint, CORS origin https://process-intelligence1.github.io (Bicep parameter, not
-  yet deployed). Idle: polling pauses after 5 min ("Paused - click to refresh"), auto sign-out after 60 min, hash routes + login?next= keep shared links / F5 working. Tests: 27 front-end + 563 back-end. Checked locally in the browser (login, dashboard, queue, detail with
-  highlighted PDF values). To do for "done": enable Pages, set variable API_BASE_URL, deploy CORS, push, check on the live site.
-- Cold-start work (DEPLOYED 3 Nov, tag 69b50ea; see docs/COLD_START.md; measured 21.4 s and 24.9 s after 15+ min idle, before 31 s / ~90 s; images 95 MB api / 241 MB worker): two images from one Dockerfile - ar-api (slim, no OCR
+- M08 done (3 Nov 2026; see docs/modules/M08_frontend.md): frontend/ (React + Vite + TS, prototype CSS copied unchanged, TanStack
+  Query/Table, Chart.js), data-source layer src/data (live + snapshot placeholder), login screen (/api/health warm-up message, Retry,
+  clear message when the server cannot be reached), Dashboard, Action Queue, Record Detail with PDF page viewer + evidence highlights,
+  Audit Trail, Knowledge Base, Demo Control placeholder, /api/changes polling (visible tab only), idle pause after 5 min ("Paused -
+  click to refresh") and auto sign-out after 60 min, hash routes + login?next= (F5 / shared links work), LIVE_ENDED page, "Chart data
+  unavailable" instead of a crash when the API is older. Hosting = GitHub Pages (.github/workflows/frontend.yml: root = pages/ landing
+  + privacy.html + terms.html, /live/ = live edition; API URL from repo variable API_BASE_URL). Backend: /api/emails behind login, PDF
+  page-image endpoint, CORS origin https://process-intelligence1.github.io (deployed). Owner checked the live screens (3 Nov): OK.
+- Cold-start work (DEPLOYED 3 Nov, tag 69b50ea, running image since then = the pushed commit; deploy.ps1 restart step fixed; see docs/COLD_START.md; measured 21.4 s and 24.9 s after 15+ min idle, before 31 s / ~90 s; images 95 MB api / 241 MB worker): two images from one Dockerfile - ar-api (slim, no OCR
   libraries, PyMuPDF kept; target api) and ar-worker (full; target worker); migrations moved out of container start-up into the
   manual job ar-migrate (run by the deploy workflow inside Azure before the new API; DB firewall stays closed to GitHub); Bicep
   parameter imageTag (commit SHA, no :latest) for ar-api / ar-worker / ar-migrate, deploy.ps1 passes the running tag (-ImageTag
   overrides); lazy Gmail imports (app/businessdate.py), compiled app code; login text "up to 1 minute" + Retry after 1 minute.
   Observed before: 31 s and ~90 s. Per-stage admin endpoints answer 501 in the slim API (worker only). Tests: 28 front-end + 565 back-end.
-- M08 follow-up (Dashboard charts + record detail, display only; built, NOT yet pushed): charts as in the prototype (Performance
-  Stability horizontal stacked, Distribution Customer/Region/Company Code, trend line Date/Week/Month/Quarter on the e-mail
-  received / business date; "Auto Processed" label, trend y-axis "AI Processed (%)"); chart data = Kpis.charts (API: app/charts.py;
-  demo edition: frontend/src/data/charts.ts; shared fixture data/eval/dashboard_charts_fixture.json). Record detail order: e-mail,
-  extracted, viewer, SAP BSID Match, Confidence Scoring (fast-path banner, green bars), pipeline, audit, AI Explanation
-  (rule-generated, frontend/src/data/explain.ts), Actions. Button renamed "Confirm & Add to Excel" (CONFIRM_ADD_EXCEL);
-  "Exported cases (n)" placeholder. No BSID Candidates table in the pop-up (data stays in ar.match_candidate and the API); when
-  several open BSID items share the invoice number, one line under the BSID block says so (bsid.shared_invoice_count). Tests: 47 front-end + 570 back-end.
+- M08 follow-up DONE and deployed (Dashboard charts + record detail, display only): charts as in the prototype (Performance Stability
+  horizontal stacked, Distribution Customer/Region/Company Code, trend line Date/Week/Month/Quarter on the e-mail received / business
+  date; "Auto Processed" label, trend y-axis "AI Processed (%)"); chart data = Kpis.charts (API: app/charts.py; demo edition:
+  frontend/src/data/charts.ts; shared fixture data/eval/dashboard_charts_fixture.json). Record detail order: e-mail, extracted,
+  viewer, SAP BSID Match, Confidence Scoring (fast-path banner, green bars), pipeline, audit, AI Explanation (rule-generated,
+  frontend/src/data/explain.ts), Actions. No BSID Candidates table (data stays in ar.match_candidate and the API); one line under the
+  BSID block when several open items share the invoice number (bsid.shared_invoice_count). Action Queue: Match_Field / Match_Level
+  columns removed (3 Nov), Promise Date column added (instalments of a payment plan, e.g. P08, are one row per instalment and look
+  identical otherwise). Button renamed "Confirm & Add to Excel" (CONFIRM_ADD_EXCEL); "Exported cases (n)" placeholder (M09).
+  Tests: 53 front-end + 571 back-end.
 - Plan change 29 Oct: action "Confirm & Add to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
-- Next: finish M08 (publish + live check), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
+- Next: M09 (plan first, wait for "go"): actions + "Confirm & Add to Excel" + "Exported cases (n)" Excel view (ExcelJS) + outbound
+  e-mails - see docs/BUILD_PLAN.md M09 and the Business decisions above. Then M10 lean, M11, M15, M13 lite, M14.
 
-## Open issues (as of 28 Oct 2026)
+## Open issues (as of 3 Nov 2026)
 Known weak spots and deferred work - check here before planning a module.
 - Accuracy / known weak scenarios
   - M04 strict hit 80 % < 85 % target: mostly deliberate part-payments (R03, R07, R27, P08 instalments) and
@@ -248,16 +252,29 @@ Known weak spots and deferred work - check here before planning a module.
 - Deferred to later modules
   - M06 follow-ups: `scripts.extract --reclean` was not run on Azure (Azure e-mails were extracted with the current
     code, so probably unnecessary); infra/main.bicep image tag is now a parameter (cold-start work); the admin key is needed to call Process now (owner reads it from Key Vault in their own terminal).
-  - M07: work-item API with filters / KPIs, USD conversion via TCURR, allowed actions per role.
-  - M08: Knowledge Base page must use the recalculated worked example (NONE 56.4 % / NEAR 83.7 % / EXACT 95.3 %
-    = max(fast path 92, formula)) - the prototype's 85.34 % does not follow raw / 0.90; fast-path text =
-    "max(fast-path value, formula)". Demo login needs a demo access code (Key Vault).
   - M09: Confirm & Add to Excel (status CONFIRMED + Excel pop-up/download, single and bulk), Mark as Non-Duplicate (R25 "CORRECTED" advices are flagged DUPLICATE on purpose).
   - M10: link P03R / P05R payments to the earlier promise (PTP kept); ar.ptp_commitment rows are already OPEN.
   - M11: history set + live set; reset point (schema demo_reset).
+- Open from the last session (3 Nov) - check before starting M09
+  - Gmail app (Google Auth Platform): the owner published it ("In production", unverified - do NOT submit for verification: restricted
+    scope, paid assessment) and renewed the token; Azure was checked to read Gmail with the new token. NOT yet confirmed by the owner:
+    that the Audience page really says "In production" (if it still says Testing, the token expires 7 days after issue, ~10 Nov).
+  - After ANY Gmail token renewal (backend folder, `.\.venv\Scripts\python.exe -m scripts.gmail_auth`, then `az keyvault secret set
+    --vault-name kv-ardemo-snjjnahqgx3b4 --name gmail-token --file D:\Finance\Secret\gmail_token.json`): Azure only re-reads Key Vault
+    values when the app / job definition is re-applied, so also run `az containerapp job update -g rg-ar-demo -n ar-worker --set-env-vars
+    TOKEN_REFRESHED_AT=<date>` and `az containerapp update -g rg-ar-demo -n ar-api --set-env-vars TOKEN_REFRESHED_AT=<date>` (the next
+    deploy.ps1 removes that harmless setting). Check by sending a sample and starting the worker (labels AR-Processed + AR-Remittance).
+  - Deploy approvals: approve ONLY the newest "Build and deploy API" run and cancel older waiting ones (approving an older run
+    replaced the API with an older image and caused a short outage on 3 Nov). The deploy fails early with "ar-migrate does not exist"
+    when the job is missing (run deploy.ps1 -ImageTag <sha> first).
+  - M08 done-when not directly verified by Claude: a NEW sample e-mail appearing in the live Action Queue without a refresh (the
+    owner saw the live screens and said OK). The Promise Date column is served by API commit 15222e5 or later (deployed 3 Nov).
+  - The slim API image has no OCR libraries: /api/admin/emails/{ref}/parse|classify|extract|match answer 501 there (use process-now
+    or scripts.process); the worker image runs read -> classify -> extract -> match.
+  - First cold start after 15+ min idle: 21.4 s and 24.9 s (docs/COLD_START.md); login text stays "up to 1 minute".
+  - The laptop database holds a few test rows from this session (e.g. samples R19-0113, P03-0193 sent for the Gmail check); harmless.
 - External facts
-  - The Gmail app (Google, Testing mode) must be published before its token expires (~3 Nov 2026); otherwise re-run
-    scripts.gmail_auth + upload.
+  - The Gmail app is published (see above); the Testing-mode 7-day expiry only matters if its status is not "In production".
   - The Azure free account ends ~25 Nov and is never upgraded, so the M15 snapshot must be exported while Azure still runs.
   - The Claude plan ends 17 Nov.
   - Revoke old GitHub tokens (owner): delete the former GHCR pull token (classic PAT) under GitHub -> Developer settings ->
