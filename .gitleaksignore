@@ -1,0 +1,9 @@
+# Findings that were looked at and accepted: public Azure built-in role definition ids in infra/main.bicep (see .gitleaks.toml).
+# git history: the commit that first had the two role-id lines
+6030b55cc219fe70825a796cd4748b672244789e:infra/main.bicep:generic-api-key:48
+6030b55cc219fe70825a796cd4748b672244789e:infra/main.bicep:generic-api-key:49
+# working tree (the scan runs on /repo in the container; line numbers are those of the file today)
+/repo/infra/main.bicep:generic-api-key:55
+/repo/infra/main.bicep:generic-api-key:56
+infra/main.bicep:generic-api-key:55
+infra/main.bicep:generic-api-key:56

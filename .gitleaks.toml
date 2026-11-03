@@ -6,7 +6,8 @@ useDefault = true   # all the standard rules stay on
 
 # The ONLY exception: Azure built-in role definition ids in infra/main.bicep. They are public identifiers (they are printed in Microsoft's
 # documentation of the built-in roles), they name a permission, not a credential - the scanner reads them as "api keys" because of their shape.
-[[allowlists]]
+# Both conditions must hold: that file AND one of these three ids. Any other value in that file, or this value elsewhere, is still reported.
+[allowlist]
 description = "Azure built-in role definition ids (public) in the Bicep template"
 condition = "AND"
 paths = ['''infra/main\.bicep$''']
