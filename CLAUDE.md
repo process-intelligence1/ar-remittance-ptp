@@ -257,8 +257,8 @@ Known weak spots and deferred work - check here before planning a module.
   - M11: history set + live set; reset point (schema demo_reset).
 - Open from the last session (3 Nov) - check before starting M09
   - Gmail app (Google Auth Platform): the owner published it ("In production", unverified - do NOT submit for verification: restricted
-    scope, paid assessment) and renewed the token; Azure was checked to read Gmail with the new token. NOT yet confirmed by the owner:
-    that the Audience page really says "In production" (if it still says Testing, the token expires 7 days after issue, ~10 Nov).
+    scope, paid assessment) and renewed the token; Azure was checked to read Gmail with the new token. The owner confirmed on
+    3 Nov that the Audience page says "In production", so the token has no 7-day expiry (it only stops if access is revoked).
   - After ANY Gmail token renewal (backend folder, `.\.venv\Scripts\python.exe -m scripts.gmail_auth`, then `az keyvault secret set
     --vault-name kv-ardemo-snjjnahqgx3b4 --name gmail-token --file D:\Finance\Secret\gmail_token.json`): Azure only re-reads Key Vault
     values when the app / job definition is re-applied, so also run `az containerapp job update -g rg-ar-demo -n ar-worker --set-env-vars
@@ -274,7 +274,7 @@ Known weak spots and deferred work - check here before planning a module.
   - First cold start after 15+ min idle: 21.4 s and 24.9 s (docs/COLD_START.md); login text stays "up to 1 minute".
   - The laptop database holds a few test rows from this session (e.g. samples R19-0113, P03-0193 sent for the Gmail check); harmless.
 - External facts
-  - The Gmail app is published (see above); the Testing-mode 7-day expiry only matters if its status is not "In production".
+  - The Gmail app is published and "In production" (confirmed 3 Nov); no token expiry to plan for.
   - The Azure free account ends ~25 Nov and is never upgraded, so the M15 snapshot must be exported while Azure still runs.
   - The Claude plan ends 17 Nov.
   - Revoke old GitHub tokens (owner): delete the former GHCR pull token (classic PAT) under GitHub -> Developer settings ->
