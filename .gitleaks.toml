@@ -1,0 +1,13 @@
+# gitleaks settings for the Secret scan workflow (.github/workflows/secret-scan.yml).
+title = "AR Remittance demo"
+
+[extend]
+useDefault = true   # all the standard rules stay on
+
+# The ONLY exception: Azure built-in role definition ids in infra/main.bicep. They are public identifiers (they are printed in Microsoft's
+# documentation of the built-in roles), they name a permission, not a credential - the scanner reads them as "api keys" because of their shape.
+[[allowlists]]
+description = "Azure built-in role definition ids (public) in the Bicep template"
+condition = "AND"
+paths = ['''infra/main\.bicep$''']
+regexes = ['''(4633458b-17de-408a-b874-0445c86b69e6|b86a8fe4-44ce-4948-aee5-eccb2c155cd7|ba92f5b4-2d11-453d-a403-e96b0029c9fe)''']
