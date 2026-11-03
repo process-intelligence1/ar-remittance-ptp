@@ -283,8 +283,11 @@ shared fixture (`data/eval/dashboard_charts_fixture.json`) proves both give iden
   item status, amount difference; from the `bsid` block of the detail API), **2. Confidence Scoring** (fast-path banner "score set
   to at least 92 % / 91 %", one row per component - Invoice Number Match with level, Amount Alignment, Sender -> Company Code,
   Customer Name Similarity, Date Proxy - with description, weight, percentage and a GREEN bar, then Final Confidence Score with a
-  High / Medium / Low badge), BSID candidates, Decision Pipeline, audit timeline, then at the END **3. AI Explanation**
+  High / Medium / Low badge), Decision Pipeline, audit timeline, then at the END **3. AI Explanation**
   (rule-generated plain-language summary, `frontend/src/data/explain.ts`) and the **Actions** area.
+  There is **no BSID Candidates table** in the pop-up (the candidates stay in `ar.match_candidate` and the API for audit). When a
+  row had several open BSID items with the same invoice number, one line under the SAP BSID Match block says: "ℹ️ <n> open BSID
+  items share invoice number <ref>. The best match was chosen by amount and currency." (`bsid.shared_invoice_count`).
 - **Labels and placeholders.** The button is **"Confirm & Add to Excel"** everywhere (code `CONFIRM_ADD_EXCEL`; stored
   recommended-action text migrated). **"Exported cases (n)"** at the top right of the Action Queue shows the number of
   confirmed cases and opens a placeholder until M09.
@@ -347,7 +350,7 @@ Not built. The demo login with the access code (M08) is the final login.
 ## M15 — Snapshot mode on GitHub Pages
 **Goal:** a permanent, free, shareable demo that needs no server after Azure ends.
 - Export script `scripts.export_snapshot`: all screen data as static JSON - work items, e-mail texts, attachment files,
-  extraction evidence, candidates and score breakdowns, KPI inputs, audit trail, PTP data, Knowledge Base content.
+  extraction evidence, score breakdowns (no candidates list: the pop-up only needs `bsid.shared_invoice_count`), KPI inputs, audit trail, PTP data, Knowledge Base content.
   **Safety:** export ONLY e-mails whose `source` is `sample`, `upload` or `history` (never e-mails that arrived from real
   senders in the inbox), plus their work items, attachments and audit entries. No secrets.
 - **Before publishing:** run gitleaks over the export, and a check that lists every e-mail address in the export that is

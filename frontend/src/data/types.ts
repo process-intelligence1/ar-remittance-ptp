@@ -146,6 +146,8 @@ export interface BsidMatch {
   debit_credit?: string;
   open_item_status?: string | null;
   amount_difference_pct?: number | null;
+  /** open BSID items that carry the same invoice number (candidates); more than one = the best match was chosen by amount and currency */
+  shared_invoice_count?: number;
 }
 
 export interface WorkItemDetail extends WorkItemRow {

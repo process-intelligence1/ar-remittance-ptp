@@ -60,8 +60,9 @@ if (-not $ok) { throw "Main deployment failed" }
 if (-not $WhatIf) {
     az deployment group show -g $rg -n ar-demo-main --query properties.outputs -o jsonc
     if (-not $SkipApp) {
-        # Restart so the app reads the new DATABASE_URL from Key Vault
-        $rev = az containerapp revision list -n ar-api -g $rg --query "[?properties.active].name | [0]" -o tsv --only-show-errors
-        if ($rev) { az containerapp revision restart -n ar-api -g $rg --revision $rev --only-show-errors -o none }
+        # A new revision (image or settings changed) already reads the new DATABASE_URL from Key Vault. Only when the
+        # template did not change, restart the latest revision so it does. (Never fail the deploy over this.)
+        $rev = az containerapp show -n ar-api -g $rg --query "properties.latestRevisionName" -o tsv --only-show-errors 2>$null
+        if ($rev) { az containerapp revision restart -n ar-api -g $rg --revision $rev --only-show-errors -o none 2>$null }
     }
 }

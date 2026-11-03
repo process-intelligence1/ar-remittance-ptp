@@ -100,7 +100,7 @@ describe("Record detail pop-up", () => {
   it("has the sections in the agreed order, with the AI Explanation and the Actions at the very end", async () => {
     const view = await open();
     const order = [...view.container.querySelectorAll("[data-section]")].map((e) => e.getAttribute("data-section"));
-    expect(order).toEqual(["email", "extracted", "viewer", "bsid", "confidence", "candidates", "pipeline", "audit", "explanation", "actions"]);
+    expect(order).toEqual(["email", "extracted", "viewer", "bsid", "confidence", "pipeline", "audit", "explanation", "actions"]);
   });
 
   it("SAP BSID Match block shows the eight fields", async () => {
@@ -132,6 +132,42 @@ describe("Record detail pop-up", () => {
     expect(block.textContent).toMatch(/read as a remittance from Innova Care/);
     expect(block.textContent).toMatch(/matches an open SAP item exactly/);
     expect(block.textContent).toMatch(/95\.3 % \(high\)/);
+  });
+});
+
+describe("BSID candidates are not shown in the pop-up", () => {
+  const open = async (d = detail()) => {
+    signedIn();
+    const view = renderApp(fakeDs({ workItem: async () => d }), "#/queue?record=ENT-000001");
+    await screen.findByText(/SAP BSID Match/);
+    return view;
+  };
+
+  it("has no BSID Candidates table, although the API still sends the candidates", async () => {
+    const d = detail();
+    expect(d.candidates.length).toBeGreaterThan(0);
+    const view = await open(d);
+    expect(view.container.textContent).not.toMatch(/BSID Candidates/);
+    expect(view.container.querySelector('[data-section="candidates"]')).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Record Detail" }).querySelectorAll("table").length).toBe(0); // (the queue table behind the pop-up is not part of it)
+  });
+
+  it("shows one line under the SAP BSID Match block when several open items share the invoice number", async () => {
+    const d = detail();
+    const view = await open({ ...d, bsid: { ...d.bsid!, shared_invoice_count: 3 } });
+    const note = screen.getByTestId("bsid-shared-note");
+    expect(note.textContent).toBe("ℹ️ 3 open BSID items share invoice number INV-1. The best match was chosen by amount and currency.");
+    const block = view.container.querySelector('[data-section="bsid"]') as HTMLElement;
+    expect(block.contains(note)).toBe(true);
+  });
+
+  it("shows nothing for a single item or when the count is missing (older API)", async () => {
+    const d = detail();
+    await open({ ...d, bsid: { ...d.bsid!, shared_invoice_count: 1 } });
+    expect(screen.queryByTestId("bsid-shared-note")).not.toBeInTheDocument();
+    cleanup();
+    await open(d);
+    expect(screen.queryByTestId("bsid-shared-note")).not.toBeInTheDocument();
   });
 });
 

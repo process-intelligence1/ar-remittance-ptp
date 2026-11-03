@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import CurrentUser, current_user, make_file_token, read_token
 from app.db import get_db
+from app.extraction.refs import normalise_ref
 from app.fx import get_rates
 from app.models.ar import (AuditLog, EmailAttachment, EmailClassification, EmailMessage, Extraction, ExtractionLine,
                            MatchCandidate, PtpCommitment, WorkItem)
@@ -205,6 +206,9 @@ def work_item_detail(item_id: str, user: CurrentUser = Depends(current_user), db
                          "customer_no": b.kunnr, "customer_name": b.customer_name or None, "company_code": b.bukrs,
                          "amount": b.wrbtr, "currency": b.waers, "posting_date": b.budat, "debit_credit": b.shkzg,
                          "open_item_status": w.bsid_open_item_status, "amount_difference_pct": w.amount_difference_pct})
+            # how many open BSID items (candidates) carry the same invoice number: the pop-up says so when it is more than one
+            ref = normalise_ref(b.xblnr)
+            bsid["shared_invoice_count"] = sum(1 for it in items.values() if ref and normalise_ref(it["xblnr"]) == ref)
     audit = db.scalars(select(AuditLog).where(
         or_(and_(AuditLog.entity_type == "work_item", AuditLog.entity_id == w.entry_id),
             and_(AuditLog.entity_type == "email", AuditLog.entity_id == e.email_ref)))

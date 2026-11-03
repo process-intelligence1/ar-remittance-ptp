@@ -23,7 +23,8 @@ All data and all actions go through one `DataSource` interface (`types.ts`); scr
   Excel (n)"), row click opens the record.
 - **Record Detail** (drawer) - original e-mail, attachment viewer (PDF pages as images via the signed link; extracted values
   highlighted from the evidence boxes), extracted fields, score breakdown (invoice match x0.35 ... confidence = max(fast
-  path, formula)), BSID candidates, other rows of the same e-mail, role-aware action buttons, audit timeline.
+  path, formula)), other rows of the same e-mail, role-aware action buttons, audit timeline. No BSID Candidates table (kept in the API
+  for audit); one line under the BSID block when several open items share the invoice number.
 - **Audit Trail** - filters + paging, details expandable. **Knowledge Base** - generated from the prototype with the agreed
   changes: "Invoice Number Match" (EXACT / NEAR / NONE), recalculated worked example (56.4 / 83.7 / 95.3 %), fast-path text
   "max(fast-path value, formula)", "Confirm & Add to Excel", one inbox instead of three mailboxes.

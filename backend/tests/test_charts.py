@@ -69,3 +69,22 @@ def test_record_detail_has_the_sap_bsid_match_block(client, db):
     assert float(b["amount_difference_pct"]) == 0.241
     w2 = make_item(db, e, bsid_match_flag=False)
     assert client.get(f"/api/work-items/{w2.entry_id}", headers=headers(client)).json()["bsid"] == {"matched": False}
+
+
+def test_bsid_block_counts_the_open_items_that_share_the_invoice_number(client, db):
+    from app.models.ar import MatchCandidate
+
+    pair = db.execute(text("select xblnr, array_agg(id order by id) as ids from sap.bsid where xblnr is not null "
+                           "group by xblnr having count(*) > 1 limit 1")).one()
+    e = make_email(db)
+    w = make_item(db, e, bsid_id=pair.ids[0], bsid_match_flag=True, bsid_open_item_status="OPEN")
+    db.add_all([MatchCandidate(work_item_id=w.id, bsid_id=pair.ids[0], rank=1, scores={}, confidence_score=Decimal("90"), chosen=True),
+                MatchCandidate(work_item_id=w.id, bsid_id=pair.ids[1], rank=2, scores={}, confidence_score=Decimal("80"), chosen=False)])
+    db.flush()
+    d = client.get(f"/api/work-items/{w.entry_id}", headers=headers(client)).json()
+    assert d["bsid"]["shared_invoice_count"] == 2 and d["bsid"]["invoice"] == pair.xblnr
+    assert len(d["candidates"]) == 2  # the candidates stay in the API (audit); the pop-up just does not list them
+    w2 = make_item(db, e, bsid_id=pair.ids[0], bsid_match_flag=True)
+    db.add(MatchCandidate(work_item_id=w2.id, bsid_id=pair.ids[0], rank=1, scores={}, confidence_score=Decimal("90"), chosen=True))
+    db.flush()
+    assert client.get(f"/api/work-items/{w2.entry_id}", headers=headers(client)).json()["bsid"]["shared_invoice_count"] == 1

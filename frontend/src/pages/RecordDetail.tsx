@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import ActionButtons, { runAction } from "../components/ActionButtons";
 import { useToast } from "../components/Toasts";
-import type { ActionCode, Attachment, AuditRow, Candidate, WorkItemDetail } from "../data";
+import type { ActionCode, Attachment, AuditRow, WorkItemDetail } from "../data";
 import { evidenceBoxes } from "../data/evidence";
 import { aiExplanation, confidenceBadge, confidenceRows, fastPathBanner } from "../data/explain";
 import { CLASS_LABELS, STATUS_BADGE, STATUS_LABELS, dateOnly, dateTime, money } from "../data/labels";
@@ -102,6 +102,11 @@ function BsidMatch({ d }: { d: WorkItemDetail }) {
           <Field label="Open Item Status">{b.open_item_status ?? "—"}</Field>
           <Field label="Amount Difference">{b.amount_difference_pct !== null && b.amount_difference_pct !== undefined ? `${Number(b.amount_difference_pct).toFixed(3)}%` : "—"}</Field>
         </div>
+        {b.matched && (b.shared_invoice_count ?? 0) > 1 && (
+          <div className="text-xs text-muted" style={{ marginTop: 10 }} data-testid="bsid-shared-note">
+            ℹ️ {b.shared_invoice_count} open BSID items share invoice number {b.invoice}. The best match was chosen by amount and currency.
+          </div>
+        )}
         {d.exception_reason && (
           <div style={{ marginTop: 10, padding: "8px 12px", background: "var(--c-danger-bg)", border: "1px solid #fecaca", borderRadius: 6, fontSize: 12, color: "var(--c-danger)" }}>
             ⚠️ Exception: {d.exception_reason}
@@ -149,30 +154,6 @@ function ConfidenceScoring({ d }: { d: WorkItemDetail }) {
         {" · "}confidence = max(fast path, formula){d.confidence_source ? ` (${d.confidence_source})` : ""}
       </div>
     </Section>
-  );
-}
-
-function Candidates({ list }: { list: Candidate[] }) {
-  if (list.length === 0) return <div className="text-muted text-xs">No candidate BSID items.</div>;
-  return (
-    <table>
-      <thead><tr><th>#</th><th>Document</th><th>Invoice ref (XBLNR)</th><th>Amount</th><th>Level</th><th>Confidence</th></tr></thead>
-      <tbody>
-        {list.map((c) => {
-          const it = c.bsid_item as Record<string, string | number | null> | null;
-          return (
-            <tr key={c.rank} style={c.chosen ? { background: "var(--c-primary-bg)" } : undefined}>
-              <td>{c.rank}{c.chosen ? " ✓" : ""}</td>
-              <td className="font-mono">{it?.belnr ?? "—"}</td>
-              <td className="font-mono">{it?.xblnr ?? "—"}</td>
-              <td>{it ? money(Number(it.wrbtr), String(it.waers)) : "—"}</td>
-              <td>{String((c.scores as Record<string, unknown>).level ?? "—")}</td>
-              <td>{c.confidence_score !== null ? `${Number(c.confidence_score).toFixed(1)}%` : "—"}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
   );
 }
 
@@ -279,17 +260,13 @@ export default function RecordDetail({ id, onClose }: { id: string; onClose: () 
               <BsidMatch d={d} />
               <ConfidenceScoring d={d} />
 
-              <Section id="candidates" title="🧾 BSID Candidates">
-                <Candidates list={d.candidates} />
-                {d.same_email_items.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className="detail-label">Other rows from the same e-mail</div>
-                    {d.same_email_items.map((s) => (
-                      <div key={s.id} className="text-xs"><span className="font-mono">{s.entry_id}</span> · {s.invoice_ref ?? "—"} · {STATUS_LABELS[s.status] ?? s.status}</div>
-                    ))}
-                  </div>
-                )}
-              </Section>
+              {d.same_email_items.length > 0 && (
+                <Section id="same_email" title="📨 Other rows from the same e-mail">
+                  {d.same_email_items.map((s) => (
+                    <div key={s.id} className="text-xs"><span className="font-mono">{s.entry_id}</span> · {s.invoice_ref ?? "—"} · {STATUS_LABELS[s.status] ?? s.status}</div>
+                  ))}
+                </Section>
+              )}
               <Section id="pipeline" title="🔄 Decision Pipeline">
                 <Pipeline d={d} />
               </Section>

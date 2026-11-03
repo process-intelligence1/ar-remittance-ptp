@@ -102,7 +102,7 @@ one plain sentence before running it, and summarise results in plain language.
   allows). M12 DROPPED. M13 lite (secret scan, dependency alerts, docs/SECURITY.md; no budget automation / Defender). M14:
   presenter runbook (live link + permanent GitHub Pages link) + accuracy summary from existing reports, no dashboard page.
 - M15 snapshot mode: export script `scripts.export_snapshot` (all screen data, e-mail texts, attachment files, evidence,
-  candidates, KPI inputs, audit, PTP, Knowledge Base). SAFETY: export ONLY e-mails whose source is sample, upload or history
+  KPI inputs, audit, PTP, Knowledge Base; no candidates list needed). SAFETY: export ONLY e-mails whose source is sample, upload or history
   (never e-mails from real senders in the inbox) plus their work items, attachments and audit entries; run gitleaks and a
   check for e-mail addresses not in the sample / customer master data before publishing. Front-end built with
   VITE_DATA_SOURCE=snapshot, deployed to GitHub Pages by GitHub Actions; actions work in the browser with a "Demo snapshot -
@@ -222,9 +222,10 @@ one plain sentence before running it, and summarise results in plain language.
   Stability horizontal stacked, Distribution Customer/Region/Company Code, trend line Date/Week/Month/Quarter on the e-mail
   received / business date; "Auto Processed" label, trend y-axis "AI Processed (%)"); chart data = Kpis.charts (API: app/charts.py;
   demo edition: frontend/src/data/charts.ts; shared fixture data/eval/dashboard_charts_fixture.json). Record detail order: e-mail,
-  extracted, viewer, SAP BSID Match, Confidence Scoring (fast-path banner, green bars), candidates, pipeline, audit, AI Explanation
+  extracted, viewer, SAP BSID Match, Confidence Scoring (fast-path banner, green bars), pipeline, audit, AI Explanation
   (rule-generated, frontend/src/data/explain.ts), Actions. Button renamed "Confirm & Add to Excel" (CONFIRM_ADD_EXCEL);
-  "Exported cases (n)" placeholder. Tests: 47 front-end + 570 back-end.
+  "Exported cases (n)" placeholder. No BSID Candidates table in the pop-up (data stays in ar.match_candidate and the API); when
+  several open BSID items share the invoice number, one line under the BSID block says so (bsid.shared_invoice_count). Tests: 47 front-end + 570 back-end.
 - Plan change 29 Oct: action "Confirm & Add to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
 - Next: finish M08 (publish + live check), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
 
