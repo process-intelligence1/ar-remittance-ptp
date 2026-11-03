@@ -30,6 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-actions", action="store_true", help="only build the e-mails")
     ap.add_argument("--no-snapshot", action="store_true", help="do not take the reset point at the end")
     ap.add_argument("--plan", action="store_true", help="show the plan and stop")
+    ap.add_argument("--restamp", action="store_true", help="only move the pipeline audit entries of already built history e-mails to their own dates")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
@@ -39,6 +40,9 @@ def main(argv: list[str] | None = None) -> int:
     bd = current_business_date(db)
     print(f"History samples: {len(codes)} | business date {bd} | dates {history.spread_dates(len(codes), bd)[0]} .. {history.spread_dates(len(codes), bd)[-1]}")
     if args.plan:
+        return 0
+    if args.restamp:
+        print(f"Pipeline audit entries moved: {history.restamp_all(db)}")
         return 0
     if not db.execute(text("select pg_try_advisory_lock(:k)"), {"k": history.BUILD_LOCK}).scalar():
         print("Another history build is running - nothing done.")

@@ -55,6 +55,41 @@ def sample_day(sample) -> date:
     return _sample_date(sample.headers.get("date")).date()
 
 
+def stamp_pipeline(db: Session, email: EmailMessage) -> int:
+    """The pipeline wrote its audit entries (ingested, read, classified, matched ...) and created the rows with the clock of the machine
+    that built the history. For an e-mail that "arrived" in August they belong in August, a little after it arrived, and before the
+    people's actions - otherwise a record's Audit Timeline shows actions before the e-mail was ingested. Returns how many entries moved."""
+    base = email.received_at
+    if base is None:
+        return 0
+    ids = db.execute(select(WorkItem.id, WorkItem.entry_id).where(WorkItem.email_id == email.id)).all()
+    entries = [e for _, e in ids]
+    audit = db.scalars(select(AuditLog).where(AuditLog.actor == "system", (
+        ((AuditLog.entity_type == "email") & (AuditLog.entity_id == email.email_ref))
+        | ((AuditLog.entity_type == "work_item") & AuditLog.entity_id.in_(entries or [""]))))
+        .order_by(AuditLog.id)).all()
+    for i, a in enumerate(audit, start=1):
+        a.occurred_at, a.business_date = base + timedelta(seconds=20 * i), base.date()
+    done = base + timedelta(seconds=20 * (len(audit) + 1))
+    db.execute(update(EmailMessage).where(EmailMessage.id == email.id).values(created_at=base))
+    if ids:
+        db.execute(update(WorkItem).where(WorkItem.email_id == email.id).values(created_at=done, updated_at=done))
+    db.flush()
+    return len(audit)
+
+
+def restamp_all(db: Session, source: str = "history") -> int:
+    """For history built before stamp_pipeline existed: move the pipeline entries of every such e-mail (idempotent)."""
+    n = 0
+    for e in db.scalars(select(EmailMessage).where(EmailMessage.source == source).order_by(EmailMessage.id)):
+        first = db.scalar(select(AuditLog.occurred_at).where(AuditLog.entity_type == "email", AuditLog.entity_id == e.email_ref,
+                                                              AuditLog.actor == "system").order_by(AuditLog.id).limit(1))
+        if first is not None and e.received_at is not None and abs((first - e.received_at).total_seconds()) > 3600:
+            n += stamp_pipeline(db, e)
+    db.commit()
+    return n
+
+
 def shift_dates(db: Session, email: EmailMessage, days: int) -> None:
     """The sample texts carry absolute dates written for "now". The e-mail was moved into the past, so the dates that belong to it
     (promise date, payment date) move with it - a promise made in August falls due in the weeks after August, not in November."""
@@ -110,7 +145,8 @@ def build_emails(db: Session, codes: list[str], library, business_date: date, *,
                 process(db, email, last_attempt=True)
             if shift:
                 shift_dates(db, email, (dates[code] - sample_day(sample)).days)
-                db.commit()
+            stamp_pipeline(db, email)
+            db.commit()
             stats.built += 1
             log.info("[%d/%d] %s -> %s %s (%.1f s)", i, len(codes), code, email.email_ref, dates[code], time.monotonic() - t0)
         except Exception as exc:  # one broken sample must not stop the build

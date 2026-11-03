@@ -250,7 +250,14 @@ one plain sentence before running it, and summarise results in plain language.
   Azure facts: samples are in Blob under samples/ (uploaded 3 Nov, 423 files); key access is OFF on the storage account, the owner has the role
   Storage Blob Data Contributor (Bicep ownerBlob); job ar-history is manual (re-run it only after `scripts.drop_history`-style cleanup, otherwise it adds nothing:
   finished e-mails are skipped). Bicep commit e79c2fd (ownerBlob) may still be unpushed.
-- Next: the owner checks Demo Control on the live site (reset point shown, one Reset), then M15 (snapshot export while Azure runs, ends ~25 Nov), M13 lite, M14.
+- M15 BUILT on the laptop (3 Nov 2026), committed locally, NOT pushed / published - see docs/modules/M15_snapshot.md: the demo edition (VITE_DATA_SOURCE=snapshot)
+  = static JSON in snapshot/data (12 MB, made from the CLEAN database ar_snapshot by `$env:DATABASE_NAME="ar_snapshot"; python -m scripts.make_snapshot --fresh
+  --export`), browser-side KPIs/actions (frontend/src/data/snapshot/), re-scoring actions disabled ("needs the live system"), Demo Control hidden. Safety check
+  PASSED (docs/reports/snapshot_check_2026-11-03.md: 85 addresses, 0 unknown); assembled site 63 MB. The Pages workflow publishes the demo at the site root and
+  the live edition under /live/ (page images + sample files are put in at build time from data/samples). Export no longer needs Azure (deadline gone).
+  Open: publish + test in a private window on another computer; Azure history still has 3 Nov pipeline timestamps (`build_history --restamp` + new reset point).
+  Tests: 631 back-end + 92 front-end.
+- Next: push M15 and test the published site; then M13 lite, M14.
 - Dependabot triage 3 Nov (docs/reports/dependabot_triage_2026-11-03.md): shipped critical/high fixed (PyJWT 2.15.1, react-router-dom 6.30.6);
   left = medium only (react-router 7 major, minimatch/uuid inside the ExcelJS bundle); dev/build-only (vite, vitest, tinypool: 4 critical,
   1 high) are listed for M13.

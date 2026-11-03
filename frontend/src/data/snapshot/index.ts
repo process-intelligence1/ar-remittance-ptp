@@ -126,7 +126,8 @@ export class SnapshotDataSource implements DataSource {
   // ---- Action Queue, Record Detail, Dashboard, Audit
   async workItems(p: ListParams): Promise<Page<WorkItemRow>> {
     const d = await this.load();
-    const rows = sortRows(applyFilters(d.rows, p as Filters), p.sort, p.order);
+    const inScope = p.in_scope ? d.rows.filter((r) => r.classification !== "OUT_OF_SCOPE") : d.rows; // the Action Queue leaves out-of-scope e-mails out (as the API does)
+    const rows = sortRows(applyFilters(inScope, p as Filters), p.sort, p.order);
     const page = pageOf(rows, p.page ?? 1, p.page_size ?? 50);
     return { ...page, items: page.items.map(this.toRow) };
   }

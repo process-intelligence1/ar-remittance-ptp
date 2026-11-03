@@ -117,6 +117,7 @@ describe("demo edition data source", () => {
     expect((await d.workItems({ from_date: "2026-10-15" })).total).toBe(1);
     expect((await d.workItems({ q: "inv-3" })).total).toBe(1);
     expect((await d.workItems({ sort: "amount", order: "asc" })).items.map((r) => r.amount).slice(-2)).toEqual([null, null]); // empty values last
+    expect((await d.workItems({ in_scope: true })).total).toBe(5); // the out-of-scope e-mail is not in the Action Queue
     const page2 = await d.workItems({ page: 2, page_size: 4 });
     expect(page2.items.length).toBe(2);
     const cash = new SnapshotDataSource("/ar/");

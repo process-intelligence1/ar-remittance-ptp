@@ -8,7 +8,8 @@ import { applyFilters, dayOf, type SnapRow } from "./rows";
 
 const cents = (x: number | null) => (x === null ? 0 : Math.round(x * 100));
 const money = (c: number) => Math.round(c) / 100;
-const round = (x: number, places: number) => Math.round((x + Number.EPSILON) * 10 ** places) / 10 ** places;
+/** Rounds the exact binary value like Python's round() does (toFixed does), so a .5 that is really .4999... rounds down in both. */
+const round = (x: number, places: number) => Number(x.toFixed(places));
 
 type Bucket = "total" | "ai" | "manual" | "duplicates" | "exceptions";
 const CARD_KEYS: Bucket[] = ["total", "ai", "manual", "duplicates", "exceptions"];
@@ -93,7 +94,7 @@ export function computeKpis(allRows: SnapRow[], filters: Filters = {}): Kpis {
     monthly_trend: [...months.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([month, v]) => ({ month, ...v })),
     charts: buildCharts(chartRows),
     performance_stability: [...days.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([date, v]) => ({
-      date, rows: v.rows, auto_rate: v.rows ? round(v.ai / v.rows, 4) : null, avg_confidence: v.confN ? round(v.conf / 100 / v.confN, 2) : null,
+      date, rows: v.rows, auto_rate: v.rows ? round(v.ai / v.rows, 4) : null, avg_confidence: v.confN ? round(v.conf / (100 * v.confN), 2) : null,
     })),
   };
 }

@@ -1,5 +1,5 @@
 """M11: reset point and Reset demo, sample library and live set, Demo Control API, history rules (silent alerts, date override)."""
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -311,3 +311,26 @@ def test_every_decision_gets_a_user_action_trail_with_past_timestamps(db, decisi
         assert w.confirmed_at is None or w.confirmed_at.date() <= bd
     # a history clarification is stored as sent and never queued
     assert db.scalar(select(func.count()).select_from(Job).where(Job.job_type == "SEND_EMAIL")) == 0
+
+
+def test_pipeline_audit_entries_move_to_the_emails_own_time_before_the_user_actions(db):
+    from app import history
+
+    e = make_email(db, source="history", received_at=datetime(2026, 8, 3, 9, 30, tzinfo=timezone.utc))
+    e.business_date = date(2026, 8, 3)
+    w = make_item(db, e)
+    now = datetime.now(timezone.utc)
+    for action, kind, ident in (("EMAIL_INGESTED", "email", e.email_ref), ("EMAIL_PARSED", "email", e.email_ref), ("WORK_ITEMS_CREATED", "work_item", w.entry_id)):
+        db.add(AuditLog(actor="system", entity_type=kind, entity_id=ident, action=action, occurred_at=now, business_date=date(2026, 11, 3)))
+    db.add(AuditLog(actor="x@acme-demo.local", entity_type="work_item", entity_id=w.entry_id, action="CONFIRM_ADD_EXCEL", occurred_at=now))
+    db.flush()
+    assert history.stamp_pipeline(db, e) == 3
+    rows = list(db.scalars(select(AuditLog).where(AuditLog.entity_id.in_([e.email_ref, w.entry_id])).order_by(AuditLog.id)))
+    system = [a for a in rows if a.actor == "system"]
+    assert [a.occurred_at for a in system] == sorted(a.occurred_at for a in system)
+    assert all(e.received_at < a.occurred_at < e.received_at + timedelta(minutes=2) and a.business_date == date(2026, 8, 3) for a in system)
+    assert rows[-1].actor != "system" and rows[-1].occurred_at == now  # a person's entry is never touched
+    db.refresh(w)
+    assert w.created_at == system[-1].occurred_at + timedelta(seconds=20)
+    first = [a.occurred_at for a in system]
+    assert history.stamp_pipeline(db, e) == 3 and [a.occurred_at for a in system] == first  # repeating gives the same times

@@ -27,12 +27,25 @@ def run(*module_args: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--export", action="store_true", help="export and check the snapshot at the end")
+    ap.add_argument("--fresh", action="store_true", help="first empty the ar.* tables of this clean database (never of ar_demo), then build")
     args = ap.parse_args(argv)
     s = get_settings()
     if not s.database_name or s.database_name == "ar_demo":
         print("Refusing: set DATABASE_NAME=ar_snapshot first (a clean database), never the normal one.")
         return 1
     print(f"Database: {s.database_url.split('@')[-1]}")
+    if args.fresh:
+        from sqlalchemy import text
+
+        from app.db import SessionLocal
+
+        with SessionLocal.begin() as db:
+            names = [r[0] for r in db.execute(text("select tablename from pg_tables where schemaname = 'ar'"))]
+            if names:
+                db.execute(text("truncate " + ", ".join(f'ar."{n}"' for n in names) + " restart identity cascade"))
+            for (seq,) in db.execute(text("select sequence_name from information_schema.sequences where sequence_schema = 'ar'")).all():
+                db.execute(text(f'alter sequence ar."{seq}" restart with 1'))
+        print("ar.* emptied (fresh start)")
 
     run("alembic", "upgrade", "head")
     run("scripts.load_reference")

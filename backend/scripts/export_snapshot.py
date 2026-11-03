@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         x = extra[r["entry_id"]]
         r.pop("allowed_actions", None)  # worked out in the browser from the role
         r["export"] = {"payment_date": x["payment_date"], "payment_reference": x["payment_reference"], "belnr": x["belnr"], "gjahr": x["gjahr"],
-                       "buzei": x["buzei"], "bsid_amount": x["bsid_amount"], "bsid_currency": x["bsid_currency"],
+                       "buzei": x["buzei"], "bsid_amount": None if x["bsid_amount"] is None else float(x["bsid_amount"]), "bsid_currency": x["bsid_currency"],
                        "language": LANGUAGES.get((x["spras"] or "").upper(), "en"), "source": x["source"],
                        "email_business_date": x["email_business_date"]}
     sizes["work_items.json"] = dump(OUT / "data" / "work_items.json", rows)
@@ -125,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         d = client.get(f"/api/work-items/{r['entry_id']}").json()
         d.pop("allowed_actions", None)
         d["resolved"] = r["resolved"]
+        d["email"].pop("rfc_message_id", None)  # a technical id (timestamp + process id of the machine that made the sample): not needed, not published
         for sibling in d.get("same_email_items", []):
             sibling.pop("allowed_actions", None)
         code = allowed[r["email_ref"]].sample_code
