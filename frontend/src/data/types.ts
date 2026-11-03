@@ -398,6 +398,55 @@ export interface PtpRunResult {
   counts: Record<string, number>;
 }
 
+/** One live-set sample in Demo Control (an e-mail the presenter can send into the inbox). */
+export interface DemoSample {
+  code: string;
+  scenario: string;
+  from: string | null;
+  subject: string | null;
+  attachments: string[];
+  sent_count: number;
+  last_sent_at: string | null;
+  last_sent_by: string | null;
+}
+
+export interface DemoState {
+  business_date: string;
+  default_business_date: string;
+  reset_point: { taken_at: string; taken_by: string; business_date: string; counts: Record<string, number> } | null;
+  live_set: DemoSample[];
+  live_set_error: string | null;
+  sent_total: number;
+}
+
+export interface WorkerStart {
+  started: boolean;
+  execution?: string;
+  reason?: string;
+}
+
+export interface DemoSendResult {
+  code: string;
+  gmail_id: string | null;
+  from: string | null;
+  subject: string | null;
+  worker: WorkerStart | null;
+}
+
+export interface DemoDateResult {
+  business_date: string;
+  before: string;
+  ptp: { checked: number; changed: string[]; alerts: number; escalations: number };
+  worker: WorkerStart | null;
+}
+
+export interface DemoResetResult {
+  reset_point_taken_at: string;
+  business_date: string;
+  restored_rows: Record<string, number>;
+  sap_restored: boolean;
+}
+
 export class NotAvailableError extends Error {}
 export class UnauthorizedError extends Error {}
 /** The server could not be reached at all (restarting, offline) - not an answer such as 401 or 500. */
@@ -433,4 +482,10 @@ export interface DataSource {
   ptpList(params: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList>;
   /** check every promise now at the business date (same as the worker) */
   runPtpChecks(): Promise<PtpRunResult>;
+  /** Demo Control (M11) */
+  demoState(): Promise<DemoState>;
+  demoSendSample(code: string, processNow: boolean): Promise<DemoSendResult>;
+  demoProcessNow(): Promise<WorkerStart>;
+  demoSetBusinessDate(change: { date: string } | { add_days: number }): Promise<DemoDateResult>;
+  demoReset(): Promise<DemoResetResult>;
 }

@@ -5,6 +5,10 @@ import {
   type BulkOutcome,
   type BulkRequest,
   type EmailPreview,
+  type DemoDateResult,
+  type DemoResetResult,
+  type DemoSendResult,
+  type DemoState,
   type PtpList,
   type PtpRunResult,
   type ExportedCases,
@@ -19,6 +23,7 @@ import {
   NotAvailableError,
   type Page,
   type Session,
+  type WorkerStart,
   type WorkItemDetail,
   type WorkItemRow,
 } from "./types";
@@ -92,5 +97,20 @@ export class SnapshotDataSource implements DataSource {
   }
   async runPtpChecks(): Promise<PtpRunResult> {
     throw later("PTP check");
+  }
+  async demoState(): Promise<DemoState> {
+    throw later("Demo Control");
+  }
+  async demoSendSample(_code: string, _processNow: boolean): Promise<DemoSendResult> {
+    throw later("Send sample");
+  }
+  async demoProcessNow(): Promise<WorkerStart> {
+    throw later("Process now");
+  }
+  async demoSetBusinessDate(_c: { date: string } | { add_days: number }): Promise<DemoDateResult> {
+    throw later("Business date");
+  }
+  async demoReset(): Promise<DemoResetResult> {
+    throw later("Reset demo");
   }
 }

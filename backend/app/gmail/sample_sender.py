@@ -109,7 +109,6 @@ def send_sample(service, code: str, original_date: bool = False) -> dict:
 
 
 def live_set() -> list[str]:
-    if not LIVE_SET_FILE.exists():
-        raise FileNotFoundError("No live set defined yet - it is chosen in module M11 (data/samples/live_set.txt).")
-    return [c.strip() for c in LIVE_SET_FILE.read_text(encoding="utf-8").splitlines()
-            if c.strip() and not c.startswith("#")]
+    from app.gmail import sample_library
+
+    return sample_library.live_set()

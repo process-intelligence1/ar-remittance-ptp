@@ -41,6 +41,7 @@ class Storage(Protocol):
     def put(self, path: str, data: bytes, content_type: str | None = None) -> str: ...
     def get(self, uri: str) -> bytes: ...
     def delete(self, uri: str) -> None: ...  # no error if the file is already gone
+    def list(self, prefix: str) -> list[str]: ...  # relative paths below `prefix` (M11: the sample library)
 
 
 class LocalStorage:
@@ -69,6 +70,11 @@ class LocalStorage:
             folder.rmdir()
 
 
+    def list(self, prefix: str) -> list[str]:
+        base = self.root / _clean_path(prefix) if prefix else self.root
+        return sorted(p.relative_to(self.root).as_posix() for p in base.rglob("*") if p.is_file()) if base.exists() else []
+
+
 class AzureBlobStorage:
     scheme = "blob"
 
@@ -89,6 +95,9 @@ class AzureBlobStorage:
 
     def get(self, uri: str) -> bytes:
         return self.container.download_blob(_clean_path(_strip_scheme(uri, self.scheme))).readall()
+
+    def list(self, prefix: str) -> list[str]:
+        return sorted(b.name for b in self.container.list_blobs(name_starts_with=_clean_path(prefix) if prefix else None))
 
     def delete(self, uri: str) -> None:
         from azure.core.exceptions import ResourceNotFoundError

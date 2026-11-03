@@ -6,6 +6,10 @@ import {
   type BulkOutcome,
   type BulkRequest,
   type EmailPreview,
+  type DemoDateResult,
+  type DemoResetResult,
+  type DemoSendResult,
+  type DemoState,
   type PtpList,
   type PtpRunResult,
   type ExportedCases,
@@ -20,6 +24,7 @@ import {
   NetworkError,
   type Page,
   type Session,
+  type WorkerStart,
   UnauthorizedError,
   type WorkItemDetail,
   type WorkItemRow,
@@ -149,6 +154,26 @@ export class LiveDataSource implements DataSource {
 
   ptpList(params: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList> {
     return this.request(`/api/ptp${toQuery({ ...params })}`);
+  }
+
+  demoState(): Promise<DemoState> {
+    return this.request("/api/demo/state");
+  }
+
+  demoSendSample(code: string, processNow: boolean): Promise<DemoSendResult> {
+    return this.request("/api/demo/send-sample", { method: "POST", body: JSON.stringify({ code, process_now: processNow }) });
+  }
+
+  demoProcessNow(): Promise<WorkerStart> {
+    return this.request("/api/demo/process-now", { method: "POST", body: JSON.stringify({}) });
+  }
+
+  demoSetBusinessDate(change: { date: string } | { add_days: number }): Promise<DemoDateResult> {
+    return this.request("/api/demo/business-date", { method: "POST", body: JSON.stringify(change) });
+  }
+
+  demoReset(): Promise<DemoResetResult> {
+    return this.request("/api/demo/reset", { method: "POST", body: JSON.stringify({ confirm: true }) });
   }
 
   runPtpChecks(): Promise<PtpRunResult> {

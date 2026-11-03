@@ -141,15 +141,17 @@ jobs:
             --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" \
             --image "$IMAGE_API:${{ github.sha }}" --output none
 
-      - name: Point the worker job at the new full image
+      - name: Point the worker jobs (ar-worker, and the one-off ar-history) at the new full image
         if: steps.check.outputs.skipped != 'true'
         run: |
-          if az resource show -g "$RESOURCE_GROUP" -n ar-worker --resource-type Microsoft.App/jobs --output none 2>/dev/null; then
-            az containerapp job update --name ar-worker --resource-group "$RESOURCE_GROUP" \
-              --image "$IMAGE_WORKER:${{ github.sha }}" --output none
-          else
-            echo "::notice::Job ar-worker does not exist yet - run infra/deploy.ps1 first."
-          fi
+          for job in ar-worker ar-history; do
+            if az resource show -g "$RESOURCE_GROUP" -n "$job" --resource-type Microsoft.App/jobs --output none 2>/dev/null; then
+              az containerapp job update --name "$job" --resource-group "$RESOURCE_GROUP" \
+                --image "$IMAGE_WORKER:${{ github.sha }}" --output none
+            else
+              echo "::notice::Job $job does not exist yet - run infra/deploy.ps1 first."
+            fi
+          done
 
       - name: Smoke test /api/health (first call may take up to a minute while it scales from zero)
         if: steps.check.outputs.skipped != 'true'
@@ -168,7 +170,7 @@ jobs:
         run: |
           images=$(az containerapp revision list -n "$APP_NAME" -g "$RESOURCE_GROUP" \
                    --query "[?properties.active].properties.template.containers[].image" -o tsv 2>/dev/null | sort -u | tr '\n' ' ')
-          for job in ar-worker ar-migrate; do
+          for job in ar-worker ar-history ar-migrate; do
             img=$(az containerapp job show -n "$job" -g "$RESOURCE_GROUP" \
                   --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)
             images="$images $img"

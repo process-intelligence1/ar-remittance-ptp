@@ -117,7 +117,10 @@ def _allocate(c: PtpCommitment, pays: list[Payment], rates: RateTable, tol: Deci
 
 
 def _queue_alert(db: Session, kind: str, c: PtpCommitment, w: WorkItem, e: EmailMessage, business_date: date,
-                 deadline: date, received: Decimal | None) -> None:
+                 deadline: date, received: Decimal | None) -> bool:
+    """Queue the alert e-mail. Returns False when none is sent (history e-mails)."""
+    if e.source == "history":
+        return False  # M11: promises of the built-in history are flagged as alerted, but no e-mail is ever sent for them
     role, label = ROLE_FOR[kind]
     who = db.scalar(select(AppUser.email).where(AppUser.role == role, AppUser.active.is_(True)).order_by(AppUser.id).limit(1)) or label
     what = f"{c.currency or ''} {c.amount:,.2f}".strip() if c.amount is not None else "(amount not stated)"
@@ -132,6 +135,7 @@ def _queue_alert(db: Session, kind: str, c: PtpCommitment, w: WorkItem, e: Email
             f"Received so far: {received if received else 0} {c.currency or ''}\n"
             f"Record: {w.entry_id} (e-mail {e.email_ref}) - open it in the Action Queue / PTP Tracker.\n")
     outbound.queue_message(db, w, e, subject=subject, body=body, created_by="system", kind=kind, intended=who)
+    return True
 
 
 def evaluate(db: Session, *, actor: str = "system", actor_role: str | None = None) -> Result:
@@ -223,13 +227,13 @@ def evaluate(db: Session, *, actor: str = "system", actor_role: str | None = Non
                                          "received": str(received) if received else None, "payments": applied or None}))
             # alerts: once per event; a promise that jumped straight to ESCALATED sends both
             if new in ("BROKEN", "ESCALATED") and c.alerted_at is None:
-                _queue_alert(db, KIND_ALERT, c, w, e, bd, deadline, received)
+                sent = _queue_alert(db, KIND_ALERT, c, w, e, bd, deadline, received)
                 c.alerted_at = datetime.now(timezone.utc)
-                out.alerts += 1
+                out.alerts += sent
             if new == "ESCALATED" and c.escalated_at is None:
-                _queue_alert(db, KIND_ESCALATION, c, w, e, bd, deadline, received)
+                sent = _queue_alert(db, KIND_ESCALATION, c, w, e, bd, deadline, received)
                 c.escalated_at = datetime.now(timezone.utc)
-                out.escalations += 1
+                out.escalations += sent
     db.commit()
     out.counts = {s: n for s, n in db.execute(select(PtpCommitment.status, func.count()).group_by(PtpCommitment.status)).all()}
     return out

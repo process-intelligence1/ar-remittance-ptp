@@ -490,6 +490,69 @@ resource workerJob 'Microsoft.App/jobs@2024-03-01' = if (deployApp) {
 }
 
 // ---------------------------------------------------------------------------
+// Container Apps JOB "ar-history" (M11): builds the demo history INSIDE Azure, once (manual trigger only, never scheduled).
+// Same full image and identity as ar-worker; `python -m scripts.build_history` reads the history samples from the Blob container
+// (prefix samples/), processes them with OCR, plays out the user actions and - only when everything succeeded - takes the
+// reset point (schema demo_reset). Additive: it never deletes data; starting it again continues where it stopped.
+// 1 vCPU / 2 GiB for at most one hour per run (about 2,000 vCPU-seconds of the 180,000 free per month). No GHCR pull token,
+// no firewall rule: it uses the app's own database secret and storage role.
+// ---------------------------------------------------------------------------
+resource historyJob 'Microsoft.App/jobs@2024-03-01' = if (deployApp) {
+  name: 'ar-history'
+  location: location
+  tags: tags
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${apiIdentity.id}': {}
+    }
+  }
+  properties: {
+    environmentId: cae.id
+    configuration: {
+      triggerType: 'Manual'
+      replicaTimeout: 3600
+      replicaRetryLimit: 0
+      manualTriggerConfig: {
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+      secrets: [
+        {
+          name: 'database-url'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/database-url'
+          identity: apiIdentity.id
+        }
+        {
+          name: 'gmail-token'
+          keyVaultUrl: '${kv.properties.vaultUri}secrets/gmail-token'
+          identity: apiIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'ar-history'
+          image: workerImage
+          command: [ 'python', '-m', 'scripts.build_history' ]
+          resources: {
+            cpu: json('1.0')
+            memory: '2Gi'
+          }
+          env: commonEnv
+        }
+      ]
+    }
+  }
+  dependsOn: [
+    apiIdentityKv
+    apiIdentityBlob
+    dbUrlSecret
+  ]
+}
+
+// ---------------------------------------------------------------------------
 // Container Apps JOB "ar-migrate": runs the database migrations (alembic upgrade head) once per deploy, INSIDE Azure,
 // so the API no longer migrates at start-up (faster cold start) and the database firewall stays closed to GitHub.
 // Manual trigger only (the deploy workflow starts it before the new API revision); same image, identity and database secret.

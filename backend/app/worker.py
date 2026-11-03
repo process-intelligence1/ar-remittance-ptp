@@ -75,7 +75,7 @@ def poll_gmail(db: Session, force: bool, summary: RoundSummary) -> None:
 def queue_unfinished(db: Session) -> int:
     """Every e-mail that is mid-way and has no active job gets one (covers new mail and a crashed worker)."""
     n = 0
-    for ref in db.scalars(select(EmailMessage.email_ref).where(EmailMessage.status.in_(IN_FLIGHT))
+    for ref in db.scalars(select(EmailMessage.email_ref).where(EmailMessage.status.in_(IN_FLIGHT), EmailMessage.source != "history")
                           .order_by(EmailMessage.received_at.nulls_first(), EmailMessage.id)):
         if jobs.active_job_for_email(db, ref) is None:
             jobs.enqueue(db, jobs.PROCESS_EMAIL, {"email_ref": ref})

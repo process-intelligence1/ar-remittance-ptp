@@ -92,7 +92,7 @@ def render_clarification(db: Session, w: WorkItem, e: EmailMessage, question: st
 
 
 def queue_message(db: Session, w: WorkItem, e: EmailMessage, *, subject: str, body: str, created_by: str,
-                  kind: str = KIND_CLARIFICATION, intended: str | None = None) -> OutboundMessage:
+                  kind: str = KIND_CLARIFICATION, intended: str | None = None, history: bool = False) -> OutboundMessage:
     """Store the (possibly edited) e-mail and queue the send job. The recipient is ALWAYS the redirect address.
     `intended` = who it would go to in production (default: the customer; internal alerts name a role)."""
     s = get_settings()
@@ -104,10 +104,13 @@ def queue_message(db: Session, w: WorkItem, e: EmailMessage, *, subject: str, bo
     lang = language_for(db, w.kunnr) if kind == KIND_CLARIFICATION else "en"  # internal alerts are always English
     msg = OutboundMessage(work_item_id=w.id, email_id=e.id, kind=kind, intended_recipient=intended or e.sender_email,
                           actual_recipient=s.outbound_redirect_to, subject=subject, body=body, language=lang,
-                          template=f"{kind.lower()}_{lang}", status="QUEUED", created_by=created_by)
+                          template=f"{kind.lower()}_{lang}", status="SENT" if history else "QUEUED", created_by=created_by)
+    if history:  # M11: part of the built-in history - it was "sent" in the past, nothing goes out now
+        msg.sent_at = datetime.now(timezone.utc)
     db.add(msg)
     db.flush()
-    jobs.enqueue(db, SEND_EMAIL, {"outbound_id": msg.id})
+    if not history:
+        jobs.enqueue(db, SEND_EMAIL, {"outbound_id": msg.id})
     return msg
 
 

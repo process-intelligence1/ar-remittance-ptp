@@ -240,7 +240,14 @@ one plain sentence before running it, and summarise results in plain language.
   DUPLICATE; 2 % tolerance; TCURR conversion at the payment date; instalments in promise-date order), alert + escalation e-mails once each
   (redirect only), PTP Tracker screen, GET /api/ptp, POST /api/ptp/run (M11 calls it after moving the date). Migration e7a4b9c1f007.
   Tests: 606 back-end + 71 front-end. The local DB now also holds sample P03R-0194 (ENT-000874) and PTP audit entries from the browser check.
-- Next: confirm M10 on the live site once deployed (move the business date past a deadline, Re-check now), then M11, M15, M13 lite, M14.
+- M11 BUILT on the laptop (3 Nov 2026), committed locally, NOT pushed / on Azure - see docs/modules/M11_demo_control.md: live set = 47 samples
+  (data/samples/live_set.txt, one per scenario code, P03+P03R and P05+P05R together), history = the other 187 (scripts.build_history: e-mails over the
+  3 months before the business date, 4 users' actions, promises, silent alerts; resumable; reset point only after a COMPLETE build), Demo Control page +
+  /api/demo/* (any signed-in user; Reset with confirmation), reset point = schema demo_reset (app/demo.py; restores ar.* incl. statuses, exports,
+  PTP flags, sent-sample markers, business date). Samples are read from the Blob prefix samples/ in Azure (app/gmail/sample_library.py). Azure: one-off
+  Container Apps job ar-history (Bicep, 3600 s, built inside Azure, no firewall). Migrations f8b5c2d0a008. Tests: 628 back-end + 77 front-end.
+  Laptop DB now holds the full local history + its reset point (scripts.drop_history removes it).
+- Next: push M11, upload samples to Blob, deploy.ps1 (creates ar-history), start the job, check Demo Control on the live site; then M15, M13 lite, M14.
 - Dependabot triage 3 Nov (docs/reports/dependabot_triage_2026-11-03.md): shipped critical/high fixed (PyJWT 2.15.1, react-router-dom 6.30.6);
   left = medium only (react-router 7 major, minimatch/uuid inside the ExcelJS bundle); dev/build-only (vite, vitest, tinypool: 4 critical,
   1 high) are listed for M13.

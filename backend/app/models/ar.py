@@ -360,6 +360,18 @@ class OutboundMessage(Base):
     created_at: Mapped[datetime] = _created()
 
 
+class DemoSampleSent(Base):
+    """Which live-set samples the presenter sent from Demo Control (restored to 'none' by Reset demo)."""
+    __tablename__ = "demo_sample_sent"
+    __table_args__ = (Index("ix_demo_sample_code", "code"), AR)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    code: Mapped[str] = mapped_column(String(20))
+    sent_by: Mapped[str] = mapped_column(String(120))
+    sent_at: Mapped[datetime] = _created()
+    gmail_id: Mapped[str | None] = mapped_column(String(64))
+
+
 class AuditLog(Base):
     """Append-only history of everything that happened (system and users)."""
     __tablename__ = "audit_log"

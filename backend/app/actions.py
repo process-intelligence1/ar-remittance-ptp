@@ -52,6 +52,7 @@ class Outcome:
 class Context:
     """Things that are expensive to load; shared by the rows of one request."""
     db: Session
+    history: bool = False   # M11 history build: a clarification is stored as already SENT (no e-mail, no job)
     _sap: object = field(default=None, repr=False)
     _rules: dict | None = None
 
@@ -149,7 +150,7 @@ def apply_action(ctx: Context, user: CurrentUser, w: WorkItem, action: str, *, v
             e = db.get(EmailMessage, w.email_id)
             try:
                 msg = outbound.queue_message(db, w, e, subject=(email or {}).get("subject", ""), body=(email or {}).get("body", ""),
-                                             created_by=user.email)
+                                             created_by=user.email, history=ctx.history)
             except outbound.OutboundError as exc:
                 raise ActionError(422, str(exc)) from exc
             out.outbound_id = msg.id
