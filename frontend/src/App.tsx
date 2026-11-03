@@ -28,7 +28,7 @@ function Layout() {
   };
   const total = useQuery({
     queryKey: ["workItems", "count"],
-    queryFn: () => ds.workItems({ page_size: 1 }),
+    queryFn: () => ds.workItems({ page_size: 1, in_scope: true }),
     enabled: !!session,
   });
   // signed out: go to the login screen and come back to this exact address afterwards (shared links, F5)

@@ -143,10 +143,13 @@ def summary(w: WorkItem, e: EmailMessage, user: CurrentUser, rates, original_ent
 @router.get("/work-items", summary="Action Queue: work items (one row per invoice), filtered, sorted, paged")
 def list_work_items(f: Filters = Depends(filters), sort: str = Query("received_at"), order: str = Query("desc"),
                     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_PAGE),
+                    in_scope: bool = Query(False, description="the Action Queue: leave out-of-scope e-mails out"),
                     user: CurrentUser = Depends(current_user), db: Session = Depends(get_db)):
     if sort not in SORTS:
         raise HTTPException(422, f"sort must be one of {sorted(SORTS)}")
     base = apply_filters(select(WorkItem, EmailMessage).join(EmailMessage, EmailMessage.id == WorkItem.email_id), f)
+    if in_scope:
+        base = base.where(WorkItem.final_classification != "OUT_OF_SCOPE")
     total = db.scalar(select(func.count()).select_from(base.with_only_columns(WorkItem.id).order_by(None).subquery()))
     direction = asc if order.lower() == "asc" else desc
     rows = db.execute(base.order_by(direction(SORTS[sort]).nulls_last(), WorkItem.id.desc())

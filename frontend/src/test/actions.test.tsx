@@ -110,6 +110,19 @@ describe("actions in the Action Queue", () => {
   });
 });
 
+describe("out-of-scope e-mails are not in the Action Queue", () => {
+  it("asks the data layer for in-scope rows only, and offers no Out of Scope classification or status filter", async () => {
+    signedIn();
+    const workItems = vi.fn(fakeDs().workItems);
+    renderApp(fakeDs({ workItems }), "#/queue");
+    await screen.findByText("ENT-000001");
+    expect(workItems.mock.calls.some(([p]) => p.page_size === 25 && p.in_scope === true)).toBe(true);
+    expect(workItems.mock.calls.filter(([p]) => p.in_scope !== true && p.status !== "CONFIRMED")).toEqual([]);
+    expect(within(screen.getByLabelText("Classification")).queryByRole("option", { name: "Out of Scope" })).not.toBeInTheDocument();
+    expect(within(screen.getByLabelText("Status")).queryByRole("option", { name: /Ignored/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("clarification e-mail and details dialogs", () => {
   it("Request Clarification previews the e-mail, lets the analyst edit it and sends it through the data layer", async () => {
     signedIn();

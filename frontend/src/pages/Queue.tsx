@@ -18,13 +18,7 @@ const SORTABLE: Record<string, string> = {
 
 function Confidence({ v, source }: { v: number | null; source: string | null }) {
   if (v === null) return <>—</>;
-  const cls = v >= 80 ? "high" : v >= 40 ? "medium" : "low";
-  return (
-    <span className="conf-bar-wrap" title={source ? `Confidence source: ${source}` : undefined}>
-      <span className="conf-bar-track"><span className={`conf-bar-fill ${cls}`} style={{ width: `${Math.min(100, v)}%` }} /></span>
-      <span className="conf-pct">{v.toFixed(1)}%</span>
-    </span>
-  );
+  return <span className="conf-pct" title={source ? `Confidence source: ${source}` : undefined}>{v.toFixed(1)}%</span>;
 }
 
 const COLUMNS: ColumnDef<WorkItemRow>[] = [
@@ -85,7 +79,7 @@ export default function Queue() {
   useEffect(() => setPage(1), [filters, pageSize]);
   const query = useQuery({
     queryKey: ["workItems", filters, page, pageSize, sort],
-    queryFn: () => ds.workItems({ ...filters, page, page_size: pageSize, sort: SORTABLE[sort.id] ?? "received_at", order: sort.desc ? "desc" : "asc" }),
+    queryFn: () => ds.workItems({ ...filters, in_scope: true, page, page_size: pageSize, sort: SORTABLE[sort.id] ?? "received_at", order: sort.desc ? "desc" : "asc" }),
     placeholderData: keepPreviousData,
   });
   const rows = query.data?.items ?? [];

@@ -315,3 +315,15 @@ def test_exported_cases_lists_all_confirmed_rows_and_records_the_download(client
     assert r2["exported_by"] == CASHAPP and r2["exported_at"]
     assert db.scalar(select(AuditLog).where(AuditLog.entity_id == a.entry_id, AuditLog.action == "EXPORTED_TO_EXCEL"))
     assert client.post("/api/exports/cases/mark-exported", json={}).status_code == 401  # login needed
+
+
+# --------------------------------------------------------------------------- Action Queue leaves out-of-scope e-mails out
+def test_the_action_queue_list_can_leave_out_of_scope_rows_out(client, db):
+    e = make_email(db)
+    keep = make_item(db, e)
+    gone = make_item(db, e, final_classification="OUT_OF_SCOPE", decision="OUT_OF_SCOPE", status="IGNORED", invoice_ref_raw=None)
+    h = headers(client)
+    ids = lambda url: {i["entry_id"] for i in client.get(url, headers=h).json()["items"]}
+    assert {keep.entry_id, gone.entry_id} <= ids("/api/work-items?customer=ZZTEST&page_size=200")
+    assert keep.entry_id in ids("/api/work-items?customer=ZZTEST&in_scope=true&page_size=200")
+    assert gone.entry_id not in ids("/api/work-items?customer=ZZTEST&in_scope=true&page_size=200")

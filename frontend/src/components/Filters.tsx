@@ -75,7 +75,7 @@ export default function FilterBar({
           <label htmlFor="f-status">Status</label>
           <select id="f-status" value={value.status ?? ""} onChange={(e) => set({ status: e.target.value })}>
             <option value="">All Statuses</option>
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
+            {Object.entries(STATUS_LABELS).filter(([k]) => !(extra === "queue" && k === "IGNORED")).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
@@ -86,7 +86,7 @@ export default function FilterBar({
           <label htmlFor="f-cls">Classification</label>
           <select id="f-cls" value={value.classification ?? ""} onChange={(e) => set({ classification: e.target.value })}>
             <option value="">All</option>
-            {SHOWN_CLASSES.map((c) => (
+            {SHOWN_CLASSES.filter((c) => !(extra === "queue" && c === "OUT_OF_SCOPE")).map((c) => (  /* out-of-scope e-mails are not in the queue */
               <option key={c} value={c}>
                 {CLASS_LABELS[c]}
               </option>

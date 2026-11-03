@@ -41,6 +41,8 @@ export interface Filters {
 }
 
 export interface ListParams extends Filters {
+  /** the Action Queue: leave out-of-scope e-mails out (they stay in the audit trail) */
+  in_scope?: boolean;
   sort?: string;
   order?: "asc" | "desc";
   page?: number;
