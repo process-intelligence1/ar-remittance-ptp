@@ -17,7 +17,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 RECOMMENDED = {  # KB "Thresholds & Decisions": the first action of each row
-    "AUTO_PROCESS": "Confirm & Extract to Excel",
+    "AUTO_PROCESS": "Confirm & Add to Excel",
     "EXCEPTION": "Add BSID Invoice Details",
     "MANUAL_REVIEW": "Add / Update Invoice Details",
     "MANUAL_INVESTIGATION": "Add / Update Invoice Details; Escalate to AR Supervisor",

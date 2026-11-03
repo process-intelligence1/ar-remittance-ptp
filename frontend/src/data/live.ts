@@ -116,7 +116,7 @@ export class LiveDataSource implements DataSource {
   }
 
   async performAction(_request: ActionRequest): Promise<ActionResult> {
-    // Actions (Confirm & Extract to Excel, Reject, ...) are built in M09.
+    // Actions (Confirm & Add to Excel, Reject, ...) are built in M09.
     throw new NotAvailableError("This action is available in M09.");
   }
 }

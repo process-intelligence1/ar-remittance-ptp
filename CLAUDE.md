@@ -34,7 +34,7 @@ one plain sentence before running it, and summarise results in plain language.
 3. Every outgoing e-mail goes ONLY to processintelligence1@gmail.com (OUTBOUND_MODE=redirect),
    stating the intended recipient in the subject/body.
 4. SAP is simulated in PostgreSQL: schema "sap" (BSID, BSAD, KNA1, ...) and is READ-ONLY for the app. The action
-   "Confirm & Extract to Excel" does NOT move BSID to BSAD: the row becomes status CONFIRMED (audit entry) and the
+   "Confirm & Add to Excel" does NOT move BSID to BSAD: the row becomes status CONFIRMED (audit entry) and the
    Excel file is the posting file. No discounts.
 5. Database changes only through Alembic migrations. Never edit tables by hand.
 6. Ask before: git push, deleting files, changing anything outside D:\Finance\AR_Remittance,
@@ -69,14 +69,14 @@ one plain sentence before running it, and summarise results in plain language.
 - Payer/currency cluster: same customer's past items in the same currency from the same sender
   domain; leave blank when there is not enough history.
 - Roles: AR_ANALYST, CASH_APPLICATION, COLLECTIONS_ANALYST, AR_SUPERVISOR.
-- Action "Confirm & Extract to Excel" (replaces "Confirm & Update SAP" everywhere). Single row (Action Queue and Record
-  Detail): an Excel-look pop-up (green title bar, column letters, row numbers, gridlines, sheet tab "Case") shows the case,
-  read-only, with "Download .xlsx" (this confirms the row, then downloads) and "Cancel". Bulk: select rows -> "Confirm &
-  Extract to Excel (n)" -> same pop-up, one row per case + a "Summary" sheet (totals per customer and currency), one
-  download; only offered when valid for every selected row. Columns: Entry ID, Email ID, received, sender, customer
-  no/name, company code, invoice no, BSID document (BELNR/GJAHR/BUZEI), invoice amount + currency, paid amount, difference,
-  payment date, payment reference, match level, confidence, decision, confirmed by/at, comment. The .xlsx is built in the
-  browser with ExcelJS (MIT), so it works in live and snapshot mode. Built in M09; M08 only shows the button.
+- Action "Confirm & Add to Excel" (replaces "Confirm & Update SAP" everywhere). Confirming a row (Action Queue or Record Detail,
+  single or bulk when valid for every selected row) sets status CONFIRMED and adds it to the export list, with an audit entry; no
+  SAP update. "Exported cases (n)" (top right of the Action Queue; n = number of confirmed cases) opens an Excel-look view (green
+  title bar, column letters, row numbers, gridlines, sheet tabs "Cases" and "Summary") of ALL confirmed cases with "Download
+  .xlsx" (ExcelJS in the browser, live and snapshot mode); exported_at / exported_by are recorded per case on download,
+  re-download allowed. Columns: Entry ID, Email ID, received, sender, customer no/name, company code, invoice no, BSID document
+  (BELNR/GJAHR/BUZEI), invoice amount + currency, paid amount, difference, payment date, payment reference, match level,
+  confidence, decision, confirmed by/at, comment. Built in M09; M08 shows the button and a placeholder for "Exported cases (n)".
 - Demo Control page: Reset demo (restores the reset point, schema demo_reset, with ~200 history e-mails incl. actions per
   invoice), Send sample e-mail (Gmail import with the customer as sender), Upload sample, Process now,
   business date. ~35 samples held back for live sending.
@@ -93,7 +93,7 @@ one plain sentence before running it, and summarise results in plain language.
   /privacy.html and /terms.html for the Gmail app. API URL comes from the repo variable API_BASE_URL (never committed). When
   the repo variable LIVE_ENDED is set (after Azure ends) /live/ shows "The live system has ended - use the demo edition"
   with a link to the root instead of waiting for the server. The login screen wakes the API with /api/health and shows
-  "Starting the server... (up to 30 s after idle)" until it answers.
+  "Starting the server... this can take up to 1 minute after a quiet period" until it answers (after 1 minute: "Still starting - please wait or click Retry").
 - Scope: M08 front-end gets ALL data through one layer `frontend/src/data/` with two implementations, "live" (API) and
   "snapshot" (static JSON), chosen by VITE_DATA_SOURCE; screens never call fetch directly, actions also go through the layer;
   demo login + demo access code (Key Vault) is the final login. M10 lean (commitments, kept / partially kept / broken, alert
@@ -218,7 +218,14 @@ one plain sentence before running it, and summarise results in plain language.
   parameter imageTag (commit SHA, no :latest) for ar-api / ar-worker / ar-migrate, deploy.ps1 passes the running tag (-ImageTag
   overrides); lazy Gmail imports (app/businessdate.py), compiled app code; login text "up to 1 minute" + Retry after 1 minute.
   Observed before: 31 s and ~90 s. Per-stage admin endpoints answer 501 in the slim API (worker only). Tests: 28 front-end + 565 back-end.
-- Plan change 29 Oct: action "Confirm & Extract to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
+- M08 follow-up (Dashboard charts + record detail, display only; built, NOT yet pushed): charts as in the prototype (Performance
+  Stability horizontal stacked, Distribution Customer/Region/Company Code, trend line Date/Week/Month/Quarter on the e-mail
+  received / business date; "Auto Processed" label, trend y-axis "AI Processed (%)"); chart data = Kpis.charts (API: app/charts.py;
+  demo edition: frontend/src/data/charts.ts; shared fixture data/eval/dashboard_charts_fixture.json). Record detail order: e-mail,
+  extracted, viewer, SAP BSID Match, Confidence Scoring (fast-path banner, green bars), candidates, pipeline, audit, AI Explanation
+  (rule-generated, frontend/src/data/explain.ts), Actions. Button renamed "Confirm & Add to Excel" (CONFIRM_ADD_EXCEL);
+  "Exported cases (n)" placeholder. Tests: 47 front-end + 570 back-end.
+- Plan change 29 Oct: action "Confirm & Add to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
 - Next: finish M08 (publish + live check), M09, M10 lean, M11, M15, M13 lite, M14 (see docs/BUILD_PLAN.md).
 
 ## Open issues (as of 28 Oct 2026)
@@ -244,7 +251,7 @@ Known weak spots and deferred work - check here before planning a module.
   - M08: Knowledge Base page must use the recalculated worked example (NONE 56.4 % / NEAR 83.7 % / EXACT 95.3 %
     = max(fast path 92, formula)) - the prototype's 85.34 % does not follow raw / 0.90; fast-path text =
     "max(fast-path value, formula)". Demo login needs a demo access code (Key Vault).
-  - M09: Confirm & Extract to Excel (status CONFIRMED + Excel pop-up/download, single and bulk), Mark as Non-Duplicate (R25 "CORRECTED" advices are flagged DUPLICATE on purpose).
+  - M09: Confirm & Add to Excel (status CONFIRMED + Excel pop-up/download, single and bulk), Mark as Non-Duplicate (R25 "CORRECTED" advices are flagged DUPLICATE on purpose).
   - M10: link P03R / P05R payments to the earlier promise (PTP kept); ar.ptp_commitment rows are already OPEN.
   - M11: history set + live set; reset point (schema demo_reset).
 - External facts

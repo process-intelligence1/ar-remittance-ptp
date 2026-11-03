@@ -1,7 +1,7 @@
 import type { ActionCode } from "./types";
 
 export const ACTION_LABELS: Record<ActionCode, string> = {
-  CONFIRM_EXTRACT_EXCEL: "Confirm & Extract to Excel",
+  CONFIRM_ADD_EXCEL: "Confirm & Add to Excel",
   ADD_UPDATE_DETAILS: "Add / Update Invoice Details",
   ADD_BSID_DETAILS: "Add BSID Invoice Details",
   REJECT: "Reject Record",

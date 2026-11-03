@@ -195,6 +195,16 @@ def work_item_detail(item_id: str, user: CurrentUser = Depends(current_user), db
         items = {r.id: dict(r._mapping) for r in db.execute(
             text("select id, bukrs, kunnr, belnr, xblnr, vbeln, wrbtr, waers, shkzg, bldat, zfbdt, xref2 from sap.bsid "
                  "where id = any(:ids)"), {"ids": [c.bsid_id for c in cands]})}
+    bsid = {"matched": bool(w.bsid_match_flag)}
+    if w.bsid_match_flag and w.bsid_id:  # the matched open item with its customer (SAP BSID Match block)
+        b = db.execute(text("select b.belnr, b.gjahr, b.buzei, b.xblnr, b.kunnr, b.bukrs, b.wrbtr, b.waers, b.budat, b.shkzg, "
+                            "trim(coalesce(k.name1, '') || ' ' || coalesce(k.name2, '')) as customer_name "
+                            "from sap.bsid b left join sap.kna1 k on k.kunnr = b.kunnr where b.id = :id"), {"id": w.bsid_id}).first()
+        if b:
+            bsid.update({"invoice": b.xblnr, "document": b.belnr, "fiscal_year": b.gjahr, "item": b.buzei,
+                         "customer_no": b.kunnr, "customer_name": b.customer_name or None, "company_code": b.bukrs,
+                         "amount": b.wrbtr, "currency": b.waers, "posting_date": b.budat, "debit_credit": b.shkzg,
+                         "open_item_status": w.bsid_open_item_status, "amount_difference_pct": w.amount_difference_pct})
     audit = db.scalars(select(AuditLog).where(
         or_(and_(AuditLog.entity_type == "work_item", AuditLog.entity_id == w.entry_id),
             and_(AuditLog.entity_type == "email", AuditLog.entity_id == e.email_ref)))
@@ -212,6 +222,7 @@ def work_item_detail(item_id: str, user: CurrentUser = Depends(current_user), db
         "extraction": columns(ext) if ext else None,
         "extraction_line": columns(line) if line else None,
         "evidence": w.extraction_evidence,
+        "bsid": bsid,
         "candidates": [{**columns(c), "bsid_item": items.get(c.bsid_id)} for c in cands],
         "score_breakdown": {k: getattr(w, k) for k in (
             "invoice_match_score", "amount_alignment_score", "sender_company_score", "customer_name_similarity",

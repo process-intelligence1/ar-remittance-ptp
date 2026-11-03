@@ -169,19 +169,19 @@ describe("Action Queue", () => {
     expect(within(co).getAllByRole("option").map((o) => o.textContent)).toEqual(["All Company Codes", "1000", "2000", "3000", "4000", "5000", "6000"]);
   });
 
-  it("offers only the bulk actions valid for every selected row, labelled 'Confirm & Extract to Excel (n)'", async () => {
+  it("offers only the bulk actions valid for every selected row, labelled 'Confirm & Add to Excel (n)'", async () => {
     signedIn();
-    const a = row({ id: 1, entry_id: "ENT-000001", allowed_actions: ["CONFIRM_EXTRACT_EXCEL", "REJECT", "REQUEST_CLARIFICATION"] });
+    const a = row({ id: 1, entry_id: "ENT-000001", allowed_actions: ["CONFIRM_ADD_EXCEL", "REJECT", "REQUEST_CLARIFICATION"] });
     const b = row({ id: 2, entry_id: "ENT-000002", allowed_actions: ["REJECT", "REQUEST_CLARIFICATION"] });
     renderApp(fakeDs({ rows: [a, b] }), "#/queue");
     await screen.findByText("ENT-000002");
     const bulk = screen.getByLabelText("Bulk action") as HTMLSelectElement;
     expect(bulk).toBeDisabled();
     fireEvent.click(screen.getByLabelText("Select ENT-000001"));
-    expect(within(bulk).getByRole("option", { name: "Confirm & Extract to Excel (1)" })).toBeInTheDocument();
+    expect(within(bulk).getByRole("option", { name: "Confirm & Add to Excel (1)" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Select ENT-000002"));
     const names = within(bulk).getAllByRole("option").map((o) => o.textContent);
-    expect(names).not.toContain("Confirm & Extract to Excel (2)"); // not valid for row 2
+    expect(names).not.toContain("Confirm & Add to Excel (2)"); // not valid for row 2
     expect(names).toEqual(expect.arrayContaining(["Reject Record", "Request Clarification"]));
   });
 
@@ -191,10 +191,10 @@ describe("Action Queue", () => {
     renderApp(fakeDs({ performAction }), "#/queue");
     await screen.findByText("ENT-000001");
     fireEvent.click(screen.getByLabelText("Select ENT-000001"));
-    fireEvent.change(screen.getByLabelText("Bulk action"), { target: { value: "CONFIRM_EXTRACT_EXCEL" } });
+    fireEvent.change(screen.getByLabelText("Bulk action"), { target: { value: "CONFIRM_ADD_EXCEL" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply to Selected" }));
     expect(await screen.findByText(/available in M09/)).toBeInTheDocument();
-    expect(performAction).toHaveBeenCalledWith({ action: "CONFIRM_EXTRACT_EXCEL", ids: [1] });
+    expect(performAction).toHaveBeenCalledWith({ action: "CONFIRM_ADD_EXCEL", ids: [1] });
   });
 
   it("the picked columns are remembered", async () => {
@@ -241,11 +241,11 @@ describe("Knowledge Base and wording", () => {
     expect(text).toContain("Invoice Number Match");
     for (const v of ["56.4%", "83.7%", "95.3%", "max(fast-path value, formula)"]) expect(text).toContain(v);
     for (const old of ["Update SAP", "Digit Match", "Digit Evidence", "85.34", "mailboxes"]) expect(text).not.toContain(old);
-    expect(text).toContain("Confirm &amp; Extract to Excel");
+    expect(text).toContain("Confirm &amp; Add to Excel");
   });
 
   it("never says 'Confirm & Update SAP' on any button label", () => {
-    expect(ACTION_LABELS.CONFIRM_EXTRACT_EXCEL).toBe("Confirm & Extract to Excel");
+    expect(ACTION_LABELS.CONFIRM_ADD_EXCEL).toBe("Confirm & Add to Excel");
     expect(Object.values(ACTION_LABELS).join(" ")).not.toMatch(/Update SAP/);
   });
 

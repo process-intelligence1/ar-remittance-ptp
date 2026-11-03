@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import CurrentUser, current_user
 from app.api.workitems import MAX_PAGE, Filters, apply_filters, columns, filters, row_date
+from app.charts import ChartInput, build_charts, bucket_of
 from app.db import get_db
 from app.fx import NO_AMOUNT, OK, get_rates
 from app.models.ar import AuditLog, EmailMessage, WorkItem
@@ -31,9 +32,17 @@ def bucket(w: WorkItem) -> str:
         return "exceptions"
     if w.status == "AUTO_PROCESSED" or (w.status == "RESOLVED" and (w.resolved_by or "system") == "system"):
         return "ai"
-    if w.status in ("PENDING_REVIEW", "RESOLVED", "REJECTED"):
+    if w.status in ("PENDING_REVIEW", "RESOLVED", "REJECTED", "CONFIRMED"):
         return "manual"
     return "other"  # IGNORED (out of scope)
+
+
+def trend_day(w: WorkItem, e: EmailMessage) -> date | None:
+    """The date of a row in the trend chart: the e-mail received / processing date (the business date for history e-mails)."""
+    if e.source == "history" and e.business_date:
+        return e.business_date
+    stamp = e.received_at or e.created_at
+    return stamp.date() if stamp else None
 
 
 def _r(x: Decimal | None) -> float | None:
@@ -51,6 +60,7 @@ def kpis(f: Filters = Depends(filters), user: CurrentUser = Depends(current_user
     months: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "ai": 0, "manual": 0, "duplicates": 0, "exceptions": 0})
     days: dict[date, list] = defaultdict(lambda: [0, 0, Decimal(0), 0])  # rows, ai, confidence sum, confidence n
     unconverted, missing = 0, defaultdict(int)
+    chart_items: list[ChartInput] = []
 
     for w, e in rows:
         on = row_date(w, e)
@@ -59,6 +69,8 @@ def kpis(f: Filters = Depends(filters), user: CurrentUser = Depends(current_user
             unconverted += 1
             missing[w.currency] += 1
         b = bucket(w)
+        chart_items.append(ChartInput(bucket_of(w.status, w.resolved_by), w.final_classification, w.customer_name, w.region,
+                                      w.bukrs, trend_day(w, e)))
         keys = ["total"] + ([b] if b in cards else [])
         for k in keys:
             cards[k]["count"] += 1
@@ -98,6 +110,7 @@ def kpis(f: Filters = Depends(filters), user: CurrentUser = Depends(current_user
                           "company_code": dist("company_code"), "classification": dist("classification"),
                           "status": dist("status")},
         "monthly_trend": [{"month": m, **v} for m, v in sorted(months.items())],
+        "charts": build_charts(chart_items),
         "performance_stability": [
             {"date": d, "rows": v[0], "auto_rate": round(v[1] / v[0], 4) if v[0] else None,
              "avg_confidence": round(float(v[2] / v[3]), 2) if v[3] else None} for d, v in sorted(days.items())],

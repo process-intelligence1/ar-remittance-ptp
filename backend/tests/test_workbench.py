@@ -51,7 +51,7 @@ def headers(client, user=USER):
 
 def make_email(db, **kw) -> EmailMessage:
     ref = f"EML-T{uuid.uuid4().hex[:8]}"
-    e = EmailMessage(email_ref=ref, source="sample", sender_email="ap@zztest.example", sender_domain="zztest.example",
+    e = EmailMessage(email_ref=ref, source=kw.pop("source", "sample"), sender_email="ap@zztest.example", sender_domain="zztest.example",
                      subject="Remittance", received_at=kw.pop("received_at", datetime(2026, 10, 12, 9, 0, tzinfo=timezone.utc)),
                      status="PROCESSED", body_text="body", body_text_clean="body", **kw)
     db.add(e)
@@ -146,7 +146,7 @@ def test_fx_loads_the_real_tables_with_the_per_100_factor(db):
 # --------------------------------------------------------------------------- permissions
 def test_allowed_actions_follow_the_knowledge_base_table():
     assert allowed_actions("AR_ANALYST", "EXCEPTION", "EXCEPTION", "AR_ANALYST") == [
-        "ADD_BSID_DETAILS", "CONFIRM_EXTRACT_EXCEL", "REQUEST_CLARIFICATION", "REJECT"]
+        "ADD_BSID_DETAILS", "CONFIRM_ADD_EXCEL", "REQUEST_CLARIFICATION", "REJECT"]
     assert "ESCALATE_TO_SUPERVISOR" in allowed_actions("CASH_APPLICATION", "MANUAL_INVESTIGATION", "PENDING_REVIEW", "CASH_APPLICATION")
     assert "ESCALATE_TO_SUPERVISOR" not in allowed_actions("AR_SUPERVISOR", "MANUAL_INVESTIGATION", "PENDING_REVIEW", "CASH_APPLICATION")
     assert allowed_actions("AR_ANALYST", "DUPLICATE", "DUPLICATE", "AR_ANALYST") == [

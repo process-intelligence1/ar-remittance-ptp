@@ -1,58 +1,95 @@
 import { useQuery } from "@tanstack/react-query";
-import { BarElement, CategoryScale, Chart as ChartJS, Legend, LineElement, LinearScale, PointElement, Tooltip } from "chart.js";
+import { BarElement, CategoryScale, Chart as ChartJS, Legend, LineElement, LinearScale, PointElement, Tooltip, type Plugin } from "chart.js";
 import { useMemo, useState } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import { useAuth } from "../auth/AuthContext";
 import FilterBar from "../components/Filters";
-import type { Filters, Kpis } from "../data";
+import type { ChartDimension, Filters, Kpis, TrendPeriod } from "../data";
 import { money } from "../data/labels";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
 
+export const COLORS = { auto: "#059669", manual: "#d97706", duplicates: "#7c3aed", exceptions: "#dc2626", remittance: "#3b82f6", ptp: "#ea580c" } as const;
+
 type CardKey = keyof Kpis["cards"];
 const CARDS: { key: CardKey; label: string; icon: string; bg: string; fg: string; sub: string; tip: string; status?: string }[] = [
   { key: "total", label: "Total Processed", icon: "📧", bg: "#eff6ff", fg: "#1e40af", sub: "All records", tip: "All records created from received e-mails, including out-of-scope e-mails." },
-  { key: "ai", label: "AI Processed", icon: "🤖", bg: "#ecfdf5", fg: "#059669", sub: "Auto-processed by AI", tip: "Records processed automatically without manual intervention.", status: "AUTO_PROCESSED" },
+  { key: "ai", label: "Auto Processed", icon: "🤖", bg: "#ecfdf5", fg: "#059669", sub: "Processed automatically", tip: "Records processed automatically without manual intervention.", status: "AUTO_PROCESSED" },
   { key: "manual", label: "Manual Processing", icon: "✋", bg: "#fffbeb", fg: "#d97706", sub: "Pending review or handled by people", tip: "Human-handled records: pending review plus records already worked by people.", status: "PENDING_REVIEW" },
   { key: "duplicates", label: "Duplicates", icon: "♻️", bg: "#f5f3ff", fg: "#7c3aed", sub: "Duplicates detected", tip: "Repeat submissions of a remittance already received or processed.", status: "DUPLICATE" },
   { key: "exceptions", label: "Exceptions", icon: "⚠️", bg: "#fef2f2", fg: "#dc2626", sub: "Requires investigation", tip: "Records where no valid BSID invoice match was found.", status: "EXCEPTION" },
 ];
 
-const DIMENSIONS = [
+const DIMENSIONS: { key: ChartDimension; label: string }[] = [
   { key: "customer", label: "Customer" },
   { key: "region", label: "Region" },
   { key: "company_code", label: "Company Code" },
-  { key: "classification", label: "Classification" },
-  { key: "status", label: "Status" },
-] as const;
+];
+const PERIODS: { key: TrendPeriod; label: string }[] = [
+  { key: "date", label: "Date" },
+  { key: "week", label: "Week" },
+  { key: "month", label: "Month" },
+  { key: "quarter", label: "Quarter" },
+];
 
-function quarterOf(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  return `${y}-Q${Math.ceil(m / 3)}`;
+/** Writes "count (pct%)" into every segment of the horizontal Performance Stability bars (pct of the classification). */
+export function performanceLabels(totals: number[]): Plugin<"bar"> {
+  return {
+    id: "performanceLabels",
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      chart.data.datasets.forEach((ds, i) => {
+        chart.getDatasetMeta(i).data.forEach((bar, j) => {
+          const value = Number(ds.data[j] ?? 0);
+          if (!value) return;
+          const { x, base, y } = bar.getProps(["x", "base", "y"], true) as { x: number; base: number; y: number };
+          const text = `${value} (${Math.round((value / (totals[j] || 1)) * 100)}%)`;
+          if (Math.abs(x - base) >= ctx.measureText(text).width + 6) ctx.fillText(text, (x + base) / 2, y);
+        });
+      });
+      ctx.restore();
+    },
+  };
 }
+
+/** Writes the count into every segment of the vertical stacked bars of the Distribution chart. */
+export const stackLabels: Plugin<"bar"> = {
+  id: "stackLabels",
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    chart.data.datasets.forEach((ds, i) => {
+      chart.getDatasetMeta(i).data.forEach((bar, j) => {
+        const value = Number(ds.data[j] ?? 0);
+        if (!value) return;
+        const { x, y, base } = bar.getProps(["x", "y", "base"], true) as { x: number; y: number; base: number };
+        if (Math.abs(base - y) >= 13) ctx.fillText(String(value), x, (y + base) / 2);
+      });
+    });
+    ctx.restore();
+  },
+};
 
 export default function Dashboard() {
   const { ds } = useAuth();
   const [filters, setFilters] = useState<Filters>({});
-  const [dimension, setDimension] = useState<(typeof DIMENSIONS)[number]["key"]>("customer");
-  const [period, setPeriod] = useState<"month" | "quarter">("month");
+  const [dimension, setDimension] = useState<ChartDimension>("customer");
+  const [period, setPeriod] = useState<TrendPeriod>("month");
   const { data, isLoading, error } = useQuery({ queryKey: ["kpis", filters], queryFn: () => ds.kpis(filters) });
 
-  const trend = useMemo(() => {
-    if (!data) return [];
-    if (period === "month") return data.monthly_trend.map((m) => ({ ...m, label: m.month }));
-    const q = new Map<string, { label: string; ai: number; manual: number; duplicates: number; exceptions: number }>();
-    for (const m of data.monthly_trend) {
-      const k = quarterOf(m.month);
-      const cur = q.get(k) ?? { label: k, ai: 0, manual: 0, duplicates: 0, exceptions: 0 };
-      cur.ai += m.ai;
-      cur.manual += m.manual;
-      cur.duplicates += m.duplicates;
-      cur.exceptions += m.exceptions;
-      q.set(k, cur);
-    }
-    return [...q.values()];
-  }, [data, period]);
+  const perfPlugin = useMemo(() => performanceLabels((data?.charts.performance ?? []).map((p) => p.total)), [data]);
+  const dimPoints = data?.charts.dimensions[dimension] ?? [];
+  const trend = data?.charts.trend[period] ?? [];
+  const pct = (s: { total: number; auto: number }) => (s.total ? Math.round((s.auto / s.total) * 1000) / 10 : 0);
 
   if (error) return <div className="page active"><div className="page-content"><div className="empty-state">Could not load the dashboard: {(error as Error).message}</div></div></div>;
 
@@ -96,36 +133,67 @@ export default function Dashboard() {
         <div className="dashboard-chart-row dashboard-chart-row-top">
           <div className="chart-card dashboard-chart-card">
             <h3>📊 Performance Stability</h3>
-            <div className="chart-wrap" style={{ height: 260 }}>
+            <div className="chart-wrap" style={{ height: 260 }} data-testid="chart-performance">
               {data && (
-                <Line
+                <Bar
+                  plugins={[perfPlugin]}
                   data={{
-                    labels: data.performance_stability.map((d) => d.date),
+                    labels: data.charts.performance.map((p) => p.label),
                     datasets: [
-                      { label: "Auto-processing rate (%)", data: data.performance_stability.map((d) => (d.auto_rate === null ? null : Math.round(d.auto_rate * 1000) / 10)), borderColor: "#059669", backgroundColor: "#059669", tension: 0.25, yAxisID: "y" },
-                      { label: "Average confidence (%)", data: data.performance_stability.map((d) => d.avg_confidence), borderColor: "#2563eb", backgroundColor: "#2563eb", tension: 0.25, yAxisID: "y" },
+                      { label: "Auto Processed", data: data.charts.performance.map((p) => p.auto), backgroundColor: COLORS.auto, borderRadius: 3 },
+                      { label: "Manual Processing", data: data.charts.performance.map((p) => p.manual), backgroundColor: COLORS.manual, borderRadius: 3 },
+                      { label: "Exceptions", data: data.charts.performance.map((p) => p.exceptions), backgroundColor: COLORS.exceptions, borderRadius: 3 },
                     ],
                   }}
-                  options={{ maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } }, plugins: { legend: { position: "bottom" } } }}
+                  options={{
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, padding: 8 } } },
+                    scales: {
+                      x: { stacked: true, beginAtZero: true, title: { display: true, text: "Number of Emails", font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 } } },
+                      y: { stacked: true, title: { display: true, text: "Classification", font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 } } },
+                    },
+                  }}
                 />
               )}
             </div>
           </div>
+
           <div className="chart-card dashboard-chart-card">
             <div className="chart-title-row">
               <h3>📐 Distribution across Dimensions</h3>
-              <select className="chart-select" aria-label="Dimension" value={dimension} onChange={(e) => setDimension(e.target.value as typeof dimension)}>
+              <select className="chart-select" aria-label="Dimension" value={dimension} onChange={(e) => setDimension(e.target.value as ChartDimension)}>
                 {DIMENSIONS.map((d) => (
                   <option key={d.key} value={d.key}>{d.label}</option>
                 ))}
               </select>
             </div>
-            <div className="chart-wrap" style={{ height: 300 }}>
+            <div className="chart-wrap dimension-scroll-wrap" style={{ height: 320, overflowX: "auto", overflowY: "hidden" }} data-testid="chart-dimension">
               {data && (
-                <Bar
-                  data={{ labels: data.distributions[dimension].map((d) => d.label), datasets: [{ label: "Records", data: data.distributions[dimension].map((d) => d.count), backgroundColor: "#3b82f6" }] }}
-                  options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }}
-                />
+                <div style={{ height: 300, width: `max(100%, ${Math.max(500, dimPoints.length * 190)}px)` }}>
+                  <Bar
+                    plugins={[stackLabels]}
+                    data={{
+                      labels: dimPoints.map((d) => d.label),
+                      datasets: [
+                        { label: "Auto Processed", data: dimPoints.map((d) => d.auto), backgroundColor: COLORS.auto, borderRadius: 3 },
+                        { label: "Manual Processing", data: dimPoints.map((d) => d.manual), backgroundColor: COLORS.manual, borderRadius: 3 },
+                        { label: "Duplicates", data: dimPoints.map((d) => d.duplicates), backgroundColor: COLORS.duplicates, borderRadius: 3 },
+                        { label: "Exceptions", data: dimPoints.map((d) => d.exceptions), backgroundColor: COLORS.exceptions, borderRadius: 3 },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: { legend: { position: "bottom", labels: { font: { size: 9 }, padding: 7 } } },
+                      scales: {
+                        x: { stacked: true, title: { display: true, text: DIMENSIONS.find((d) => d.key === dimension)!.label, font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 }, maxRotation: 35, minRotation: 0 } },
+                        y: { stacked: true, beginAtZero: true, title: { display: true, text: "Email Count", font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 } } },
+                      },
+                    }}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -133,25 +201,32 @@ export default function Dashboard() {
 
         <div className="chart-card dashboard-chart-card dashboard-chart-wide">
           <div className="chart-title-row">
-            <h3>📈 Processing Trend</h3>
-            <select className="chart-select" aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value as typeof period)}>
-              <option value="month">Month</option>
-              <option value="quarter">Quarter</option>
+            <h3>📈 Monthly Processing Trend</h3>
+            <select className="chart-select" aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value as TrendPeriod)}>
+              {PERIODS.map((p) => (
+                <option key={p.key} value={p.key}>{p.label}</option>
+              ))}
             </select>
           </div>
-          <div className="chart-wrap" style={{ height: 280 }}>
+          <div className="chart-wrap" style={{ height: 280 }} data-testid="chart-trend">
             {data && (
-              <Bar
+              <Line
                 data={{
                   labels: trend.map((t) => t.label),
                   datasets: [
-                    { label: "AI processed", data: trend.map((t) => t.ai), backgroundColor: "#059669" },
-                    { label: "Manual", data: trend.map((t) => t.manual), backgroundColor: "#d97706" },
-                    { label: "Duplicates", data: trend.map((t) => t.duplicates), backgroundColor: "#7c3aed" },
-                    { label: "Exceptions", data: trend.map((t) => t.exceptions), backgroundColor: "#dc2626" },
+                    { label: "Remittance AI Processed %", data: trend.map((t) => pct(t.remittance)), borderColor: COLORS.remittance, backgroundColor: "rgba(59,130,246,0.15)", tension: 0.25, pointRadius: 3 },
+                    { label: "PTP AI Processed %", data: trend.map((t) => pct(t.ptp)), borderColor: COLORS.ptp, backgroundColor: "rgba(234,88,12,0.15)", tension: 0.25, pointRadius: 3 },
                   ],
                 }}
-                options={{ maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: "bottom" } } }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, padding: 8 } } },
+                  scales: {
+                    x: { title: { display: true, text: PERIODS.find((p) => p.key === period)!.label, font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 }, maxRotation: 45 } },
+                    y: { beginAtZero: true, max: 100, title: { display: true, text: "AI Processed (%)", font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 }, callback: (v) => `${v}%` } },
+                  },
+                }}
               />
             )}
           </div>

@@ -8,6 +8,7 @@ import FilterBar from "../components/Filters";
 import { useToast } from "../components/Toasts";
 import type { ActionCode, Filters, WorkItemRow } from "../data";
 import { ACTION_LABELS, CLASS_LABELS, STATUS_BADGE, STATUS_LABELS, dateTime, money } from "../data/labels";
+import ExportedCases from "../components/ExportedCases";
 import RecordDetail from "./RecordDetail";
 
 const COLUMN_KEY = "ar_queue_columns";
@@ -79,6 +80,9 @@ export default function Queue() {
   const [visibility, setVisibility] = useState<VisibilityState>(loadVisibility);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<ActionCode | "">("");
+  const [exportedOpen, setExportedOpen] = useState(false);
+  // confirmed cases = the export list ("Exported cases (n)")
+  const confirmed = useQuery({ queryKey: ["workItems", "confirmed-count"], queryFn: () => ds.workItems({ status: "CONFIRMED", page_size: 1 }) });
 
   useEffect(() => setPage(1), [filters, pageSize]);
   const query = useQuery({
@@ -115,9 +119,14 @@ export default function Queue() {
   return (
     <div className="page active" id="page-queue">
       <div className="page-content">
-        <div className="page-header">
-          <h1>⚡ Action Queue</h1>
-          <p>Operational workbench — review, approve and process AR records</p>
+        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div>
+            <h1>⚡ Action Queue</h1>
+            <p>Operational workbench — review, approve and process AR records</p>
+          </div>
+          <button type="button" className="filter-btn btn-apply" onClick={() => setExportedOpen(true)} data-testid="exported-cases-button">
+            📗 Exported cases ({confirmed.data?.total ?? 0})
+          </button>
         </div>
         <FilterBar value={filters} onChange={setFilters} extra="queue" />
         <div style={{ margin: "-6px 0 10px", fontSize: 12, color: "var(--c-text3)" }}>{query.isFetching ? "Loading…" : `${total.toLocaleString("en-US")} record(s)`}</div>
@@ -131,7 +140,7 @@ export default function Queue() {
             <span style={{ fontSize: 12, color: "var(--c-text3)" }}>{selected.size} selected</span>
             <select aria-label="Bulk action" value={bulkAction} onChange={(e) => setBulkAction(e.target.value as ActionCode | "")} disabled={bulkActions.length === 0} style={{ height: 32, minWidth: 250, padding: "0 10px", border: "1px solid var(--c-border)", borderRadius: 6 }}>
               <option value="">{selected.size ? "Select bulk action" : "Select records first"}</option>
-              {bulkActions.map((a) => <option key={a} value={a}>{ACTION_LABELS[a]}{a === "CONFIRM_EXTRACT_EXCEL" ? ` (${selected.size})` : ""}</option>)}
+              {bulkActions.map((a) => <option key={a} value={a}>{ACTION_LABELS[a]}{a === "CONFIRM_ADD_EXCEL" ? ` (${selected.size})` : ""}</option>)}
             </select>
             <button type="button" className="filter-btn btn-apply" disabled={!bulkAction} onClick={apply}>Apply to Selected</button>
             <button type="button" className="filter-btn btn-reset" onClick={() => setSelected(new Map())}>Clear Selection</button>
@@ -205,6 +214,7 @@ export default function Queue() {
         </div>
       </div>
       {openId && session && <RecordDetail id={openId} onClose={close} />}
+      {exportedOpen && <ExportedCases count={confirmed.data?.total ?? 0} onClose={() => setExportedOpen(false)} />}
     </div>
   );
 }

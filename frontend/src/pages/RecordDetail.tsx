@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 import ActionButtons, { runAction } from "../components/ActionButtons";
 import { useToast } from "../components/Toasts";
 import type { ActionCode, Attachment, AuditRow, Candidate, WorkItemDetail } from "../data";
 import { evidenceBoxes } from "../data/evidence";
-import { CLASS_LABELS, STATUS_BADGE, STATUS_LABELS, dateTime, money } from "../data/labels";
+import { aiExplanation, confidenceBadge, confidenceRows, fastPathBanner } from "../data/explain";
+import { CLASS_LABELS, STATUS_BADGE, STATUS_LABELS, dateOnly, dateTime, money } from "../data/labels";
 
 const IMAGE = /^image\/(png|jpe?g|gif|tiff?)$/;
+const GREEN = "#059669";
 
 function Viewer({ attachments, evidence }: { attachments: Attachment[]; evidence: ReturnType<typeof evidenceBoxes> }) {
   const { ds } = useAuth();
@@ -65,7 +67,7 @@ function TextView({ attachment }: { attachment: Attachment }) {
   return <pre className="email-body">{q.data?.text || "(no text could be read from this file)"}</pre>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="detail-row">
       <span className="detail-label">{label}</span>
@@ -74,35 +76,79 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const SCORE_LABELS: [string, string][] = [
-  ["invoice_match_score", "Invoice match (×0.35)"],
-  ["amount_alignment_score", "Amount alignment (×0.30)"],
-  ["sender_company_score", "Sender → company code (×0.10)"],
-  ["customer_name_similarity", "Customer name (×0.05)"],
-  ["date_proxy_score", "Date proximity (×0.10)"],
-];
-
-function Scores({ d }: { d: WorkItemDetail }) {
-  const s = d.score_breakdown;
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <div>
-      {SCORE_LABELS.map(([k, label]) => {
-        const v = Number(s[k] ?? 0);
-        return (
-          <div className="conf-component" key={k}>
-            <span>{label}</span>
-            <span className="conf-component-bar"><span className="conf-component-bar-fill" style={{ width: `${Math.round(v * 100)}%` }} /></span>
-            <span className="font-mono">{v.toFixed(3)}</span>
-          </div>
-        );
-      })}
-      <Field label="Raw score">{s.raw_score !== null ? Number(s.raw_score).toFixed(3) : null}</Field>
-      <Field label="Formula confidence (raw ÷ 0.90)">{s.formula_confidence !== null ? `${Number(s.formula_confidence).toFixed(1)}%` : null}</Field>
-      <Field label="Fast path">{s.fast_path_override ? String(s.fast_path_override) : "not applied"}</Field>
-      <Field label="Confidence (max of fast path and formula)">
-        {s.confidence_score !== null ? `${Number(s.confidence_score).toFixed(1)}% (${s.confidence_source ?? "—"})` : null}
-      </Field>
+    <div className="modal-section" data-section={id}>
+      <div className="modal-section-title">{title}</div>
+      {children}
     </div>
+  );
+}
+
+/** 1. SAP BSID Match - two-column grid like the prototype. */
+function BsidMatch({ d }: { d: WorkItemDetail }) {
+  const b = d.bsid;
+  return (
+    <Section id="bsid" title="🔗 SAP BSID Match">
+      <span className={`badge ${b.matched ? "badge-bsid-yes" : "badge-bsid-no"}`}>{b.matched ? "BSID match: Yes" : "BSID match: No"}</span>
+      <div style={{ marginTop: 10 }}>
+        <div className="detail-grid">
+          <Field label="BSID Invoice"><span className="font-mono">{b.invoice ?? "—"}</span></Field>
+          <Field label="BSID Customer">{b.customer_name || b.customer_no ? `${b.customer_name ?? "—"} (${(b.customer_no ?? "").replace(/^0+/, "") || "—"})` : "—"}</Field>
+          <Field label="BSID Company Code"><span className="font-mono">{b.company_code ?? "—"}</span></Field>
+          <Field label="BSID Amount"><span className="font-mono">{b.amount !== undefined ? money(Number(b.amount), b.currency) : "—"}</span></Field>
+          <Field label="BSID Currency">{b.currency ?? "—"}</Field>
+          <Field label="BSID Posting Date">{dateOnly(b.posting_date)}</Field>
+          <Field label="Open Item Status">{b.open_item_status ?? "—"}</Field>
+          <Field label="Amount Difference">{b.amount_difference_pct !== null && b.amount_difference_pct !== undefined ? `${Number(b.amount_difference_pct).toFixed(3)}%` : "—"}</Field>
+        </div>
+        {d.exception_reason && (
+          <div style={{ marginTop: 10, padding: "8px 12px", background: "var(--c-danger-bg)", border: "1px solid #fecaca", borderRadius: 6, fontSize: 12, color: "var(--c-danger)" }}>
+            ⚠️ Exception: {d.exception_reason}
+          </div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+/** 2. Confidence Scoring - fast-path banner, one row per component with a green bar, final score with badge. */
+function ConfidenceScoring({ d }: { d: WorkItemDetail }) {
+  const banner = fastPathBanner(d);
+  const badge = confidenceBadge(d);
+  const final = d.score_breakdown.confidence_score === null ? null : Number(d.score_breakdown.confidence_score);
+  return (
+    <Section id="confidence" title="⚖️ Confidence Scoring">
+      {banner && (
+        <div style={{ background: "var(--c-primary-bg)", border: "1px solid #bfdbfe", borderRadius: 6, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: "var(--c-primary)" }}>
+          ⚡ <strong>{banner}</strong>
+        </div>
+      )}
+      {confidenceRows(d).map((r) => (
+        <div className="conf-component" key={r.key}>
+          <div>
+            <div className="comp-name">{r.name}</div>
+            <div className="conf-explanation">{r.description}</div>
+          </div>
+          <div className="comp-weight">Weight {r.weight}</div>
+          <div className="comp-score" style={{ color: GREEN }}>{(r.score * 100).toFixed(1)}%</div>
+          <div className="conf-component-bar">
+            <div className="conf-component-bar-fill" style={{ width: `${Math.min(100, r.score * 100)}%`, background: GREEN }} />
+          </div>
+        </div>
+      ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, paddingTop: 10, borderTop: "2px solid var(--c-border)" }}>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>Final Confidence Score</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span className={`badge ${badge.cls}`}>{badge.label}</span>
+          <span style={{ fontSize: 20, fontWeight: 800, color: GREEN }}>{final !== null ? `${final.toFixed(1)}%` : "—"}</span>
+        </div>
+      </div>
+      <div className="text-xs text-muted" style={{ marginTop: 6 }}>
+        Raw score {d.score_breakdown.raw_score !== null ? Number(d.score_breakdown.raw_score).toFixed(3) : "—"} ÷ 0.90 = formula {d.score_breakdown.formula_confidence !== null ? `${Number(d.score_breakdown.formula_confidence).toFixed(1)}%` : "—"}
+        {" · "}confidence = max(fast path, formula){d.confidence_source ? ` (${d.confidence_source})` : ""}
+      </div>
+    </Section>
   );
 }
 
@@ -147,6 +193,24 @@ function Timeline({ rows }: { rows: AuditRow[] }) {
   );
 }
 
+function Pipeline({ d }: { d: WorkItemDetail }) {
+  const conf = d.score_breakdown.confidence_score === null ? null : Number(d.score_breakdown.confidence_score);
+  const labels = [CLASS_LABELS[d.classification] ?? d.classification, d.invoice_ref ?? "—", d.bsid.matched ? "Match" : "No Match", conf !== null ? `${conf.toFixed(1)}%` : "—", (d.decision ?? "—").replace(/_/g, " "), d.recommended_action ?? "—"];
+  return (
+    <div className="decision-pipeline">
+      {["Classify", "Extract", "BSID Lookup", "Score", "Decision", "Action"].map((step, i) => (
+        <div className="pipeline-step" key={step}>
+          <div className="pipeline-node active" style={{ minWidth: 90 }}>
+            <div style={{ fontSize: 10, fontWeight: 600 }}>{step}</div>
+            <div style={{ fontSize: 9, color: "var(--c-text3)", marginTop: 2 }}>{labels[i]}</div>
+          </div>
+          {i < 5 && <span className="pipeline-arrow">→</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RecordDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { ds } = useAuth();
   const toast = useToast();
@@ -181,61 +245,70 @@ export default function RecordDetail({ id, onClose }: { id: string; onClose: () 
                   <strong>Why this needs attention:</strong> {[d.exception_reason, ...(d.review_reasons ?? [])].filter(Boolean).join(" · ")}
                 </div>
               )}
-              <div className="modal-section">
-                <div className="modal-section-title">Actions</div>
-                <ActionButtons actions={d.allowed_actions} onAction={(a: ActionCode) => runAction(ds, toast, a, [d.id])} />
-                {d.recommended_action && <div className="text-xs text-muted" style={{ marginTop: 6 }}>Recommended: {d.recommended_action}</div>}
-              </div>
+
               <div className="detail-columns">
                 <div>
-                  <div className="modal-section">
-                    <div className="modal-section-title">Original e-mail</div>
+                  <Section id="email" title="📧 Email Details">
                     <Field label="From">{String(d.email.sender_name ?? "")} {d.sender_email ? `<${d.sender_email}>` : ""}</Field>
                     <Field label="Subject">{d.subject}</Field>
                     <Field label="Received">{dateTime(d.received_at)}</Field>
                     <pre className="email-body">{String(d.email.body_text_clean ?? d.email.body_text ?? "")}</pre>
-                  </div>
-                  <div className="modal-section">
-                    <div className="modal-section-title">Attachment viewer (extracted values highlighted)</div>
-                    <Viewer key={d.id} attachments={d.attachments} evidence={boxes} />
-                  </div>
+                  </Section>
+                  <Section id="extracted" title="🔍 Extracted Information">
+                    <div className="detail-grid">
+                      <Field label="Customer">{d.customer_name ? `${d.customer_name} (${(d.kunnr ?? "").replace(/^0+/, "")})` : "(unidentified)"}</Field>
+                      <Field label="Company code / region">{`${d.company_code ?? "—"} / ${d.region ?? "—"}`}</Field>
+                      <Field label="Invoice number">{d.invoice_ref}</Field>
+                      <Field label="Amount">{money(d.amount, d.currency)}{d.usd_status === "OK" && d.currency !== "USD" ? ` (≈ ${money(d.amount_usd)} USD)` : d.usd_status === "NO_RATE" ? " (no exchange rate)" : ""}</Field>
+                      <Field label="Payment date">{String(d.work_item.payment_date ?? "—")}</Field>
+                      <Field label="Payment reference">{String(d.work_item.remittance_ref ?? "—")}</Field>
+                      <Field label="Promise date">{String(d.work_item.promise_date ?? "—")}</Field>
+                      <Field label="Deduction">{d.work_item.deduction_amount ? `${d.work_item.deduction_amount} (${d.work_item.deduction_reason ?? "—"})` : "—"}</Field>
+                      <Field label="Assigned to">{d.assigned_role?.replace(/_/g, " ")}</Field>
+                      <Field label="SLA due">{dateTime(d.sla_due_at)}</Field>
+                    </div>
+                  </Section>
                 </div>
                 <div>
-                  <div className="modal-section">
-                    <div className="modal-section-title">Extracted fields</div>
-                    <Field label="Customer">{d.customer_name ? `${d.customer_name} (${(d.kunnr ?? "").replace(/^0+/, "")})` : "(unidentified)"}</Field>
-                    <Field label="Company code / region">{`${d.company_code ?? "—"} / ${d.region ?? "—"}`}</Field>
-                    <Field label="Invoice number">{d.invoice_ref}</Field>
-                    <Field label="Amount">{money(d.amount, d.currency)}{d.usd_status === "OK" && d.currency !== "USD" ? ` (≈ ${money(d.amount_usd)} USD)` : d.usd_status === "NO_RATE" ? " (no exchange rate)" : ""}</Field>
-                    <Field label="Payment date">{String(d.work_item.payment_date ?? "—")}</Field>
-                    <Field label="Payment reference">{String(d.work_item.remittance_ref ?? "—")}</Field>
-                    <Field label="Promise date">{String(d.work_item.promise_date ?? "—")}</Field>
-                    <Field label="Deduction">{d.work_item.deduction_amount ? `${d.work_item.deduction_amount} (${d.work_item.deduction_reason ?? "—"})` : "—"}</Field>
-                    <Field label="Assigned to">{d.assigned_role?.replace(/_/g, " ")}</Field>
-                    <Field label="SLA due">{dateTime(d.sla_due_at)}</Field>
-                  </div>
-                  <div className="modal-section">
-                    <div className="modal-section-title">Match &amp; score breakdown</div>
-                    <Scores d={d} />
-                  </div>
-                  <div className="modal-section">
-                    <div className="modal-section-title">BSID candidates</div>
-                    <Candidates list={d.candidates} />
-                  </div>
-                  {d.same_email_items.length > 0 && (
-                    <div className="modal-section">
-                      <div className="modal-section-title">Other rows from the same e-mail</div>
-                      {d.same_email_items.map((s) => (
-                        <div key={s.id} className="text-xs"><span className="font-mono">{s.entry_id}</span> · {s.invoice_ref ?? "—"} · {STATUS_LABELS[s.status] ?? s.status}</div>
-                      ))}
-                    </div>
-                  )}
+                  <Section id="viewer" title="📎 Attachment Viewer (extracted values highlighted)">
+                    <Viewer key={d.id} attachments={d.attachments} evidence={boxes} />
+                  </Section>
                 </div>
               </div>
-              <div className="modal-section">
-                <div className="modal-section-title">Audit timeline</div>
+
+              <BsidMatch d={d} />
+              <ConfidenceScoring d={d} />
+
+              <Section id="candidates" title="🧾 BSID Candidates">
+                <Candidates list={d.candidates} />
+                {d.same_email_items.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className="detail-label">Other rows from the same e-mail</div>
+                    {d.same_email_items.map((s) => (
+                      <div key={s.id} className="text-xs"><span className="font-mono">{s.entry_id}</span> · {s.invoice_ref ?? "—"} · {STATUS_LABELS[s.status] ?? s.status}</div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+              <Section id="pipeline" title="🔄 Decision Pipeline">
+                <Pipeline d={d} />
+              </Section>
+              <Section id="audit" title="🕘 Audit Timeline">
                 <Timeline rows={d.audit} />
-              </div>
+              </Section>
+
+              <Section id="explanation" title="🤖 AI Explanation">
+                <div className="ai-explanation">
+                  {aiExplanation(d).map((line, i) => (
+                    <p key={i} style={{ margin: i ? "6px 0 0" : 0 }}>{line}</p>
+                  ))}
+                </div>
+              </Section>
+              <Section id="actions" title="⚡ Actions">
+                <div style={{ marginBottom: 8 }}><span className={`badge ${STATUS_BADGE[d.status] ?? ""}`}>{STATUS_LABELS[d.status] ?? d.status}</span></div>
+                <ActionButtons actions={d.allowed_actions} onAction={(a: ActionCode) => runAction(ds, toast, a, [d.id])} />
+                {d.recommended_action && <div className="text-xs text-muted" style={{ marginTop: 6 }}>Recommended: {d.recommended_action}</div>}
+              </Section>
             </>
           )}
         </div>

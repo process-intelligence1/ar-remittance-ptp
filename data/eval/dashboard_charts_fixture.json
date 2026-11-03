@@ -1,0 +1,62 @@
+{
+  "_note": "Shared by backend/tests/test_charts.py and frontend/src/test/charts.test.ts: the same rows must give the same chart data in both.",
+  "rows": [
+    {"status": "AUTO_PROCESSED", "classification": "REMITTANCE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-12"},
+    {"status": "AUTO_PROCESSED", "classification": "REMITTANCE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-13"},
+    {"status": "PENDING_REVIEW", "classification": "REMITTANCE", "customer": "Beta", "region": "APAC", "company_code": "2000", "day": "2026-10-13"},
+    {"status": "EXCEPTION", "classification": "REMITTANCE", "customer": "Beta", "region": null, "company_code": "2000", "day": "2026-11-02"},
+    {"status": "AUTO_PROCESSED", "classification": "PTP", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-12"},
+    {"status": "CONFIRMED", "classification": "PTP", "customer": "Gamma", "region": "AMER", "company_code": "3000", "day": "2026-01-05"},
+    {"status": "DUPLICATE", "classification": "DUPLICATE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-14"},
+    {"status": "IGNORED", "classification": "OUT_OF_SCOPE", "customer": null, "region": null, "company_code": null, "day": "2026-10-14"},
+    {"status": "RESOLVED", "classification": "REMITTANCE", "customer": "Unknown", "region": "N/A", "company_code": "1000", "day": "2026-12-30", "resolved_by": "analyst@acme-demo.local"}
+  ],
+  "expected": {
+    "performance": [
+      {"label": "Remittance", "auto": 2, "manual": 2, "exceptions": 1, "total": 5},
+      {"label": "Promise-to-Pay", "auto": 1, "manual": 1, "exceptions": 0, "total": 2}
+    ],
+    "dimensions": {
+      "customer": [
+        {"label": "Acme", "auto": 3, "manual": 0, "duplicates": 1, "exceptions": 0, "total": 4},
+        {"label": "Beta", "auto": 0, "manual": 1, "duplicates": 0, "exceptions": 1, "total": 2},
+        {"label": "Gamma", "auto": 0, "manual": 1, "duplicates": 0, "exceptions": 0, "total": 1}
+      ],
+      "region": [
+        {"label": "EMEA", "auto": 3, "manual": 0, "duplicates": 1, "exceptions": 0, "total": 4},
+        {"label": "AMER", "auto": 0, "manual": 1, "duplicates": 0, "exceptions": 0, "total": 1},
+        {"label": "APAC", "auto": 0, "manual": 1, "duplicates": 0, "exceptions": 0, "total": 1}
+      ],
+      "company_code": [
+        {"label": "1000", "auto": 3, "manual": 1, "duplicates": 1, "exceptions": 0, "total": 5},
+        {"label": "2000", "auto": 0, "manual": 1, "duplicates": 0, "exceptions": 1, "total": 2},
+        {"label": "3000", "auto": 0, "manual": 1, "duplicates": 0, "exceptions": 0, "total": 1}
+      ]
+    },
+    "trend": {
+      "date": [
+        {"key": "2026-01-05", "label": "5 Jan 2026", "remittance": {"total": 0, "auto": 0}, "ptp": {"total": 1, "auto": 0}},
+        {"key": "2026-10-12", "label": "12 Oct 2026", "remittance": {"total": 1, "auto": 1}, "ptp": {"total": 1, "auto": 1}},
+        {"key": "2026-10-13", "label": "13 Oct 2026", "remittance": {"total": 2, "auto": 1}, "ptp": {"total": 0, "auto": 0}},
+        {"key": "2026-11-02", "label": "2 Nov 2026", "remittance": {"total": 1, "auto": 0}, "ptp": {"total": 0, "auto": 0}},
+        {"key": "2026-12-30", "label": "30 Dec 2026", "remittance": {"total": 1, "auto": 0}, "ptp": {"total": 0, "auto": 0}}
+      ],
+      "week": [
+        {"key": "2026-W02", "label": "2026-W02", "remittance": {"total": 0, "auto": 0}, "ptp": {"total": 1, "auto": 0}},
+        {"key": "2026-W42", "label": "2026-W42", "remittance": {"total": 3, "auto": 2}, "ptp": {"total": 1, "auto": 1}},
+        {"key": "2026-W45", "label": "2026-W45", "remittance": {"total": 1, "auto": 0}, "ptp": {"total": 0, "auto": 0}},
+        {"key": "2026-W53", "label": "2026-W53", "remittance": {"total": 1, "auto": 0}, "ptp": {"total": 0, "auto": 0}}
+      ],
+      "month": [
+        {"key": "2026-01", "label": "Jan 2026", "remittance": {"total": 0, "auto": 0}, "ptp": {"total": 1, "auto": 0}},
+        {"key": "2026-10", "label": "Oct 2026", "remittance": {"total": 3, "auto": 2}, "ptp": {"total": 1, "auto": 1}},
+        {"key": "2026-11", "label": "Nov 2026", "remittance": {"total": 1, "auto": 0}, "ptp": {"total": 0, "auto": 0}},
+        {"key": "2026-12", "label": "Dec 2026", "remittance": {"total": 1, "auto": 0}, "ptp": {"total": 0, "auto": 0}}
+      ],
+      "quarter": [
+        {"key": "2026-Q1", "label": "2026 Q1", "remittance": {"total": 0, "auto": 0}, "ptp": {"total": 1, "auto": 0}},
+        {"key": "2026-Q4", "label": "2026 Q4", "remittance": {"total": 5, "auto": 2}, "ptp": {"total": 1, "auto": 1}}
+      ]
+    }
+  }
+}

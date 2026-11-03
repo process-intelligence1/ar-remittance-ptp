@@ -16,7 +16,7 @@ export interface Session {
 }
 
 export type ActionCode =
-  | "CONFIRM_EXTRACT_EXCEL"
+  | "CONFIRM_ADD_EXCEL"
   | "ADD_UPDATE_DETAILS"
   | "ADD_BSID_DETAILS"
   | "REJECT"
@@ -130,6 +130,24 @@ export interface AuditRow {
   details: Record<string, unknown> | null;
 }
 
+/** The matched SAP open item (BSID) with its customer - the "SAP BSID Match" block of the record detail. */
+export interface BsidMatch {
+  matched: boolean;
+  invoice?: string | null;
+  document?: string;
+  fiscal_year?: string;
+  item?: string;
+  customer_no?: string;
+  customer_name?: string | null;
+  company_code?: string;
+  amount?: number;
+  currency?: string;
+  posting_date?: string | null;
+  debit_credit?: string;
+  open_item_status?: string | null;
+  amount_difference_pct?: number | null;
+}
+
 export interface WorkItemDetail extends WorkItemRow {
   work_item: Record<string, unknown>;
   email: Record<string, unknown> & { body_text?: string; body_text_clean?: string; sender_name?: string };
@@ -140,6 +158,7 @@ export interface WorkItemDetail extends WorkItemRow {
   evidence: unknown;
   candidates: Candidate[];
   score_breakdown: Record<string, number | string | boolean | null>;
+  bsid: BsidMatch;
   ptp_commitments: Record<string, unknown>[];
   same_email_items: WorkItemRow[];
   audit: AuditRow[];
@@ -151,10 +170,45 @@ export interface DistributionPoint {
   usd: number | null;
 }
 
+export interface PerformancePoint {
+  label: string;
+  auto: number;
+  manual: number;
+  exceptions: number;
+  total: number;
+}
+
+export interface DimensionPoint {
+  label: string;
+  auto: number;
+  manual: number;
+  duplicates: number;
+  exceptions: number;
+  total: number;
+}
+
+export type ChartDimension = "customer" | "region" | "company_code";
+export type TrendPeriod = "date" | "week" | "month" | "quarter";
+
+export interface TrendPoint {
+  key: string;
+  label: string;
+  remittance: { total: number; auto: number };
+  ptp: { total: number; auto: number };
+}
+
+/** The three Dashboard charts. Same shape from the API (live) and from data/charts.ts (demo edition). */
+export interface ChartsData {
+  performance: PerformancePoint[];
+  dimensions: Record<ChartDimension, DimensionPoint[]>;
+  trend: Record<TrendPeriod, TrendPoint[]>;
+}
+
 export interface Kpis {
   cards: Record<"total" | "ai" | "manual" | "duplicates" | "exceptions", { count: number; usd: number | null }>;
   usd: { unconverted: number; missing_rate_currencies: Record<string, number>; note: string };
   distributions: Record<"customer" | "region" | "company_code" | "classification" | "status", DistributionPoint[]>;
+  charts: ChartsData;
   monthly_trend: { month: string; total: number; ai: number; manual: number; duplicates: number; exceptions: number }[];
   performance_stability: { date: string; rows: number; auto_rate: number | null; avg_confidence: number | null }[];
 }

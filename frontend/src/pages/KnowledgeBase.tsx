@@ -20,7 +20,7 @@ const NAV_TITLES: Record<string, string> = {
 const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").toLowerCase();
 
 /** The Knowledge Base. Its content is generated from the prototype (docs/prototype) with the agreed changes:
- *  "Invoice Number Match" (EXACT / NEAR / NONE), the recalculated worked example, "Confirm & Extract to Excel". */
+ *  "Invoice Number Match" (EXACT / NEAR / NONE), the recalculated worked example, "Confirm & Add to Excel". */
 export default function KnowledgeBase() {
   const all = sections as Section[];
   const [active, setActive] = useState(all[0].id);

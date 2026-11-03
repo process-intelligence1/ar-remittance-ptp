@@ -26,7 +26,7 @@ All data and all actions go through one `DataSource` interface (`types.ts`); scr
   path, formula)), BSID candidates, other rows of the same e-mail, role-aware action buttons, audit timeline.
 - **Audit Trail** - filters + paging, details expandable. **Knowledge Base** - generated from the prototype with the agreed
   changes: "Invoice Number Match" (EXACT / NEAR / NONE), recalculated worked example (56.4 / 83.7 / 95.3 %), fast-path text
-  "max(fast-path value, formula)", "Confirm & Extract to Excel", one inbox instead of three mailboxes.
+  "max(fast-path value, formula)", "Confirm & Add to Excel", one inbox instead of three mailboxes.
 - **Demo Control** - placeholder (M11).
 - Live updates: `/api/changes` polled every 17 s **only while the tab is visible**; new rows reload the lists and show a toast.
 - **Idle handling** (`hooks/useIdle.ts`): after 5 minutes without activity (mouse, keys, scroll, touch) polling pauses and a banner
@@ -52,6 +52,11 @@ variable `LIVE_ENDED=true` switches `/live/` to the "live system has ended" page
 Front-end: 27 (Vitest + Testing Library): warm-up logic and login screen messages, sign-in / wrong code, live-ended page, data
 layer (query strings, token, 401, signed links), evidence boxes, Action Queue columns / filters / bulk-action intersection /
 "available in M09", column memory, Dashboard cards, change polling only while visible, idle pause / 60-minute sign-out / activity postpones it, deep links and shared links, Knowledge Base wording. Back-end: 563.
+
+## Follow-up (Dashboard charts and record detail)
+See docs/BUILD_PLAN.md "M08 follow-up". Charts: `Kpis.charts` (API `backend/app/charts.py`; demo edition `frontend/src/data/charts.ts`;
+shared fixture `data/eval/dashboard_charts_fixture.json`). Record detail: SAP BSID Match, Confidence Scoring, AI Explanation
+(`frontend/src/data/explain.ts`), Actions last. Button "Confirm & Add to Excel"; "Exported cases (n)" placeholder (M09).
 
 ## Limits
 - Actions are not functional yet (M09); the Confirm button is shown per role.

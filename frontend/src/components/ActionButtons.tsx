@@ -23,10 +23,10 @@ export default function ActionButtons({ actions, onAction }: { actions: ActionCo
         <button
           key={a}
           type="button"
-          className={`action-btn ${a === "CONFIRM_EXTRACT_EXCEL" ? "action-btn-approve" : a === "REJECT" ? "action-btn-danger" : a === "ESCALATE_TO_SUPERVISOR" ? "action-btn-danger" : "action-btn-primary"}`}
+          className={`action-btn ${a === "CONFIRM_ADD_EXCEL" ? "action-btn-approve" : a === "REJECT" ? "action-btn-danger" : a === "ESCALATE_TO_SUPERVISOR" ? "action-btn-danger" : "action-btn-primary"}`}
           onClick={() => onAction(a)}
         >
-          {a === "CONFIRM_EXTRACT_EXCEL" ? "📥 " : ""}
+          {a === "CONFIRM_ADD_EXCEL" ? "📥 " : ""}
           {ACTION_LABELS[a]}
         </button>
       ))}

@@ -252,7 +252,7 @@ locally and in Azure; a forced failure is retried and visible.
 - **After Azure ends:** when the repo variable `LIVE_ENDED` is set, `/live/` shows "The live system has ended - use the
   demo edition" with a link to the GitHub Pages root, instead of waiting on server start.
 - **Action naming:** the button, the Knowledge Base decision table and `allowed_actions` say **"Confirm & Extract to
-  Excel"** (action code `CONFIRM_EXTRACT_EXCEL`), never "Confirm & Update SAP". The button is shown in M08 (role-aware)
+  Excel"** (action code `CONFIRM_ADD_EXCEL`), never "Confirm & Update SAP". The button is shown in M08 (role-aware)
   and becomes functional in M09 (until then: "available in M09"). Status CONFIRMED joins the status list.
 - Add simple public `/privacy.html` and `/terms.html` pages on the GitHub Pages site, then give me the steps to
   add them in Google Auth Platform → Branding and publish the Gmail app to "In production"
@@ -264,30 +264,55 @@ in the Action Queue without refresh; works on a 1366-px laptop screen.
 
 **→ MVP reached.**
 
-## M09 — Actions, Confirm & Extract to Excel, outbound e-mail
-- Actions per KB table: **Confirm & Extract to Excel**, Add / Update details, Reject, Request Clarification, Escalate to AR
+## M08 follow-up — Dashboard charts and record detail (layout and display only; DONE)
+Matches the prototype (`docs/prototype/AR_Remittance.html`). Chart data comes from the data-source layer (`Kpis.charts`): the API
+computes it for the live edition (`backend/app/charts.py`), the browser for the demo edition (`frontend/src/data/charts.ts`); one
+shared fixture (`data/eval/dashboard_charts_fixture.json`) proves both give identical numbers.
+- **Dashboard.** Green `#059669` **Auto Processed** (the label everywhere on the Dashboard; only the trend chart's y-axis keeps
+  "AI Processed (%)"), orange `#d97706` Manual Processing, purple `#7c3aed` Duplicates, red `#dc2626` Exceptions.
+  1. *Performance Stability*: horizontal stacked bar, y = Classification (Remittance, Promise-to-Pay), x = Number of Emails,
+     segment labels "count (pct%)"; Auto / Manual / Exceptions (duplicates excluded).
+  2. *Distribution across Dimensions*: vertical stacked bars, dropdown Customer / Region / Company Code (no Mailbox), x = the
+     dimension, y = Email Count, count labels, horizontal scroll when there are many bars, legend incl. Duplicates; records
+     without a value for the dimension are left out of that chart.
+  3. *Monthly Processing Trend*: line chart, dropdown Date / Week (ISO, Monday start) / Month / Quarter, y = AI Processed (%)
+     0-100, lines Remittance AI Processed % (blue) and PTP AI Processed % (orange). Dates = the **e-mail received / processing
+     date (the business date for history e-mails)**, not the payment date.
+- **Record detail pop-up**, in this order: e-mail details, extracted information, attachment viewer, **1. SAP BSID Match**
+  (two-column grid: match flag, BSID invoice, BSID customer name + number, company code, amount, currency, posting date, open
+  item status, amount difference; from the `bsid` block of the detail API), **2. Confidence Scoring** (fast-path banner "score set
+  to at least 92 % / 91 %", one row per component - Invoice Number Match with level, Amount Alignment, Sender -> Company Code,
+  Customer Name Similarity, Date Proxy - with description, weight, percentage and a GREEN bar, then Final Confidence Score with a
+  High / Medium / Low badge), BSID candidates, Decision Pipeline, audit timeline, then at the END **3. AI Explanation**
+  (rule-generated plain-language summary, `frontend/src/data/explain.ts`) and the **Actions** area.
+- **Labels and placeholders.** The button is **"Confirm & Add to Excel"** everywhere (code `CONFIRM_ADD_EXCEL`; stored
+  recommended-action text migrated). **"Exported cases (n)"** at the top right of the Action Queue shows the number of
+  confirmed cases and opens a placeholder until M09.
+
+## M09 — Actions, Confirm & Add to Excel, Exported cases, outbound e-mail
+- Actions per KB table: **Confirm & Add to Excel**, Add / Update details, Reject, Request Clarification, Escalate to AR
   Supervisor, Close as Duplicate, Mark as Non-Duplicate; bulk actions (role-aware, from `allowed_actions`).
-- **Confirm & Extract to Excel** replaces "Confirm & Update SAP". It does NOT change SAP data (no BSID -> BSAD move): the row
-  becomes status `CONFIRMED` and the audit log gets an entry (before / after, who, when, comment); the Excel file is the
-  posting file.
-  - Single row (Action Queue and Record Detail): opens an Excel-look pop-up - green title bar, column letters, row numbers,
-    gridlines, sheet tab "Case" - showing the case info read-only, with **Download .xlsx** (confirms the row, then downloads)
-    and **Cancel**.
-  - Bulk: select rows in the Action Queue -> "Confirm & Extract to Excel (n)" -> the same pop-up with one row per case plus a
-    "Summary" sheet (totals per customer and currency) -> one download. Only offered when valid for every selected row.
+- **Confirm & Add to Excel** (works in the Action Queue and the Record Detail): the row becomes status `CONFIRMED` and is
+  **added to the export list**, with an audit entry (before / after, who, when, comment). **No SAP update** (BSID / BSAD are never
+  changed). Bulk confirm for the selected rows - only offered when valid for every selected row.
+- **Exported cases (n)** (top right of the Action Queue) opens an Excel-look view - green title bar, column letters, row
+  numbers, gridlines, sheet tabs **"Cases"** and **"Summary"** (totals per customer and currency) - listing **ALL confirmed
+  cases**, with **Download .xlsx** (built **in the browser with ExcelJS**, MIT) exporting all of them. `exported_at` /
+  `exported_by` are recorded per case on download (migration); re-download is allowed.
   - Columns: Entry ID, Email ID, received, sender, customer no / name, company code, invoice no, BSID document
     (BELNR / GJAHR / BUZEI), invoice amount + currency, paid amount, difference, payment date, payment reference, match level,
     confidence, decision, confirmed by / at, comment.
-  - The .xlsx is built **in the browser with ExcelJS (MIT)**, so it works in live mode and in snapshot mode (M15).
+  - Works in live mode and in snapshot mode (M15).
 - Outbound e-mails from Jinja2 templates in the customer's language (KNA1.SPRAS), sent via Gmail
   API **only to processintelligence1@gmail.com**, subject `[AR-DEMO][<kind> → <intended recipient>]`,
   header `X-AR-Demo: outbound`, label `AR-Outbound`; analyst previews/edits before sending.
 - Customer replies (same thread) attach to the same e-mail case and trigger re-processing.
 - Every action → audit log with before/after values.
 
-**Done when:** every action works for the roles allowed by `allowed_actions` and is audited; single and bulk Confirm & Extract to
-Excel show the Excel-look pop-up and download a correct .xlsx (checked by opening it); bulk is refused when a selected row is not
-valid; a CONFIRMED row offers no further actions; SAP tables are unchanged.
+**Done when:** every action works for the roles allowed by `allowed_actions` and is audited; Confirm & Add to Excel (single and
+bulk) turns rows CONFIRMED and adds them to the export list; "Exported cases (n)" shows the Excel-look view with all confirmed
+cases and downloads a correct .xlsx (checked by opening it), recording exported_at / exported_by; bulk is refused when a selected
+row is not valid; a CONFIRMED row offers no further actions; SAP tables are unchanged.
 
 ## M10 — PTP engine (lean)
 - `ar.ptp_commitment` per invoice/instalment; daily check (business date): paid → KEPT, partly → PARTIALLY_KEPT, not paid
@@ -332,7 +357,7 @@ Not built. The demo login with the access code (M08) is the final login.
 - Actions (confirm, reject, ...) work **in the browser** on the loaded data, with a banner "Demo snapshot - changes reset
   on reload" and a Reset button. **KPIs and chart data are computed in the browser from the snapshot rows**, so actions
   taken during a demo update the Dashboard immediately.
-- Outbound e-mails are shown as previews (nothing is sent). Gmail and Process now are hidden. Confirm & Extract to Excel
+- Outbound e-mails are shown as previews (nothing is sent). Gmail and Process now are hidden. Confirm & Add to Excel
   works in the browser (ExcelJS) exactly as in live mode.
 - Demo login in snapshot mode: pick a demo user; no API and no access code (the data is public synthetic data).
 

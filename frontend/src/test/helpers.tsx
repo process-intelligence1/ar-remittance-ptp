@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import App from "../App";
-import type { ActionRequest, ActionResult, DataSource, DemoUser, Kpis, Page, Session, WorkItemRow } from "../data";
+import type { ActionRequest, ActionResult, DataSource, DemoUser, Kpis, Page, Session, WorkItemDetail, WorkItemRow } from "../data";
 import { NotAvailableError } from "../data";
 
 export const USERS: DemoUser[] = [
@@ -15,8 +15,8 @@ export function row(over: Partial<WorkItemRow> = {}): WorkItemRow {
     classification: "REMITTANCE", line_type: "REMITTANCE", invoice_ref: "INV-1", match_field: "XBLNR", match_level: "EXACT",
     bsid_match: true, amount: 100, currency: "USD", amount_usd: 100, usd_status: "OK", confidence: 95.3,
     confidence_source: "FORMULA", decision: "AUTO_PROCESS", status: "AUTO_PROCESSED", exception_reason: null,
-    review_reasons: null, recommended_action: "Confirm & Extract to Excel", assigned_role: "CASH_APPLICATION", sla_due_at: null,
-    duplicate_of: null, updated_at: "2026-10-12T09:00:00Z", allowed_actions: ["CONFIRM_EXTRACT_EXCEL"], ...over,
+    review_reasons: null, recommended_action: "Confirm & Add to Excel", assigned_role: "CASH_APPLICATION", sla_due_at: null,
+    duplicate_of: null, updated_at: "2026-10-12T09:00:00Z", allowed_actions: ["CONFIRM_ADD_EXCEL"], ...over,
   };
 }
 
@@ -24,6 +24,11 @@ export const KPIS: Kpis = {
   cards: { total: { count: 3, usd: 300 }, ai: { count: 1, usd: 100 }, manual: { count: 1, usd: 100 }, duplicates: { count: 0, usd: 0 }, exceptions: { count: 1, usd: 100 } },
   usd: { unconverted: 0, missing_rate_currencies: {}, note: "" },
   distributions: { customer: [{ label: "Innova Care", count: 3, usd: 300 }], region: [{ label: "EMEA", count: 3, usd: 300 }], company_code: [], classification: [], status: [] },
+  charts: {
+    performance: [{ label: "Remittance", auto: 1, manual: 1, exceptions: 1, total: 3 }, { label: "Promise-to-Pay", auto: 0, manual: 0, exceptions: 0, total: 0 }],
+    dimensions: { customer: [{ label: "Innova Care", auto: 1, manual: 1, duplicates: 0, exceptions: 1, total: 3 }], region: [], company_code: [] },
+    trend: { date: [], week: [], month: [{ key: "2026-10", label: "Oct 2026", remittance: { total: 3, auto: 1 }, ptp: { total: 0, auto: 0 } }], quarter: [] },
+  },
   monthly_trend: [], performance_stability: [],
 };
 
@@ -57,4 +62,26 @@ export function signedIn(user: DemoUser = USERS[0]) {
 export function renderApp(ds: DataSource, hash: string) {
   window.location.hash = hash;
   return render(<App dataSource={ds} />);
+}
+
+/** A full record detail for the pop-up tests. */
+export function detail(over: Partial<WorkItemDetail> = {}): WorkItemDetail {
+  const base = row();
+  return {
+    ...base,
+    work_item: { payment_date: "2026-10-12", remittance_ref: "PAY-1", promise_date: null, deduction_amount: null },
+    email: { sender_name: "AP Team", body_text_clean: "Dear AR, payment attached.", body_text: "Dear AR, payment attached." },
+    attachments: [],
+    classification_detail: null, extraction: null, extraction_line: null, evidence: null,
+    candidates: [{ rank: 1, chosen: true, confidence_score: 95.3, scores: { level: "EXACT" }, bsid_item: { belnr: "9002600125", xblnr: "INV-1", wrbtr: 100, waers: "USD" } }],
+    score_breakdown: {
+      invoice_match_score: 1, amount_alignment_score: 1, sender_company_score: 1, customer_name_similarity: 0.957, date_proxy_score: 0.6,
+      raw_score: 0.858, confidence_score: 95.3, confidence_category: "HIGH", confidence_source: "FORMULA", formula_confidence: 95.3,
+      fast_path_override: "EXACT_FULL_MATCH", amount_difference_pct: 0.241, date_difference_days: 144, payer_cluster_flag: null, currency_cluster_flag: null,
+    },
+    bsid: { matched: true, invoice: "INV-1", document: "9002600125", fiscal_year: "2026", item: "001", customer_no: "0000100001", customer_name: "Innova Care Products",
+      company_code: "1000", amount: 100, currency: "USD", posting_date: "2026-09-01", debit_credit: "S", open_item_status: "OPEN", amount_difference_pct: 0.241 },
+    ptp_commitments: [], same_email_items: [], audit: [],
+    ...over,
+  };
 }
