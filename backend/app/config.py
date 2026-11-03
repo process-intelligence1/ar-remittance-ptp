@@ -9,6 +9,7 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +28,9 @@ class Settings(BaseSettings):
 
     # --- Database ------------------------------------------------------------
     database_url: str = "postgresql+psycopg://ar_app:CHANGE_ME@localhost:5432/ar_demo"
+    # DATABASE_NAME=ar_snapshot uses the same server, user and password as DATABASE_URL but another database (M15: a clean
+    # database for building the demo snapshot, so nothing of the laptop's own test data can end up in it).
+    database_name: str = ""
 
     # --- Demo business date ----------------------------------------------------
     # All business rules (due dates, PTP kept/broken, date scoring) use this date,
@@ -96,6 +100,15 @@ class Settings(BaseSettings):
 
     # --- Front-end origin allowed to call the API (CORS) -------------------------
     cors_origins: str = "http://localhost:5173"
+
+
+    @model_validator(mode="after")
+    def _use_database_name(self) -> "Settings":
+        if self.database_name:
+            from sqlalchemy.engine import make_url
+
+            self.database_url = make_url(self.database_url).set(database=self.database_name).render_as_string(hide_password=False)
+        return self
 
 
 @lru_cache

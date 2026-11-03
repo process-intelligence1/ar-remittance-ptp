@@ -56,9 +56,11 @@ export default function PtpTracker() {
             <h1>🤝 PTP Tracker</h1>
             <p>Promises to pay: kept, partly kept, broken and escalated — checked at the business date{data ? ` (${dateOnly(data.business_date)})` : ""}</p>
           </div>
-          <button type="button" className="filter-btn btn-apply" onClick={recheck} disabled={busy} data-testid="ptp-recheck">
-            {busy ? "Checking…" : "↻ Re-check now"}
-          </button>
+          {ds.kind === "live" && (
+            <button type="button" className="filter-btn btn-apply" onClick={recheck} disabled={busy} data-testid="ptp-recheck">
+              {busy ? "Checking…" : "↻ Re-check now"}
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>

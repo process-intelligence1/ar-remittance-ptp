@@ -135,6 +135,7 @@ def summary(w: WorkItem, e: EmailMessage, user: CurrentUser, rates, original_ent
         "duplicate_of": original_entry, "body_only": w.body_only_flag, "updated_at": w.updated_at,
         "version": w.row_version, "action_comment": w.action_comment, "confirmed_by": w.confirmed_by,
         "confirmed_at": w.confirmed_at, "exported_at": w.exported_at,
+        "resolved": bool(w.resolved_at),
         "allowed_actions": allowed_actions(user.role, w.decision, w.status, w.assigned_role, bool(w.resolved_at)),
     }
 

@@ -96,6 +96,8 @@ export interface WorkItemRow {
   confirmed_by?: string | null;
   confirmed_at?: string | null;
   exported_at?: string | null;
+  /** true once the record is closed by a person (the Knowledge Base then offers no further action) */
+  resolved?: boolean;
   allowed_actions: ActionCode[];
 }
 
@@ -482,6 +484,8 @@ export interface DataSource {
   ptpList(params: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList>;
   /** check every promise now at the business date (same as the worker) */
   runPtpChecks(): Promise<PtpRunResult>;
+  /** Demo edition only (M15): put the data back to what was loaded; the live edition has no such method (it has Reset demo in Demo Control) */
+  resetSnapshot?(): void;
   /** Demo Control (M11) */
   demoState(): Promise<DemoState>;
   demoSendSample(code: string, processNow: boolean): Promise<DemoSendResult>;

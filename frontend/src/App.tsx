@@ -61,9 +61,11 @@ function Layout() {
           <NavLink to="/kb" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
             <span className="nav-icon">📚</span> Knowledge Base
           </NavLink>
-          <NavLink to="/demo" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
-            <span className="nav-icon">🎛️</span> Demo Control
-          </NavLink>
+          {ds.kind === "live" && (
+            <NavLink to="/demo" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
+              <span className="nav-icon">🎛️</span> Demo Control
+            </NavLink>
+          )}
         </nav>
         <div id="topbar-right">
           <span className="user-chip">
@@ -72,6 +74,12 @@ function Layout() {
           </span>
         </div>
       </div>
+      {ds.kind === "snapshot" && (
+        <div className="banner" role="status" data-testid="snapshot-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <span>Demo snapshot - changes reset on reload. Nothing here is real data and nothing is sent.</span>
+          <button type="button" className="filter-btn btn-reset" onClick={() => { ds.resetSnapshot?.(); qc.invalidateQueries(); toast("Demo reset to the loaded data.", "success"); }}>Reset</button>
+        </div>
+      )}
       {paused && (
         <div className="banner" role="button" tabIndex={0} style={{ cursor: "pointer" }} onClick={refresh} onKeyDown={(e) => e.key === "Enter" && refresh()}>
           Paused - click to refresh
@@ -98,7 +106,7 @@ export default function App({ dataSource }: { dataSource?: DataSource }) {
                 <Route path="ptp" element={<PtpTracker />} />
                 <Route path="audit" element={<Audit />} />
                 <Route path="kb" element={<KnowledgeBase />} />
-                <Route path="demo" element={<DemoControl />} />
+                <Route path="demo" element={ds.kind === "live" ? <DemoControl /> : <Navigate to="/" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

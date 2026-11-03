@@ -1,13 +1,14 @@
 name: Publish site (GitHub Pages)
 
-# Builds the front-end (live edition) and publishes the site: root = landing + /privacy.html + /terms.html,
-# /live/ = the live edition working against the Azure API. M15 adds the demo (snapshot) edition at the root.
+# Builds the front-end and publishes the site: root = the DEMO edition (snapshot data, no server; M15), /live/ = the live edition
+# working against the Azure API, plus /privacy.html and /terms.html. The demo edition needs snapshot/ (made on the laptop by
+# scripts.export_snapshot + scripts.check_snapshot, committed); the sample files and the PDF page images are put into the site here.
 # The API address is NOT in the repo: it comes from the repository variable API_BASE_URL (Settings -> Variables).
 # Set the repository variable LIVE_ENDED to "true" after the Azure environment is gone: /live/ then says so.
 on:
   push:
     branches: [main]
-    paths: ["frontend/**", "pages/**", ".github/workflows/frontend.yml"]
+    paths: ["frontend/**", "pages/**", "snapshot/**", "data/samples/**", ".github/workflows/frontend.yml", ".github/scripts/build_site_files.py"]
   workflow_dispatch:
 
 permissions:
@@ -41,11 +42,25 @@ jobs:
           npm ci
           npm test
           npm run build
-      - name: Assemble the site
+      - name: Build the demo edition (snapshot data, at the site root)
+        working-directory: frontend
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_DATA_SOURCE: snapshot
+        run: npm run build -- --outDir dist-demo
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Assemble the site (demo edition at the root, live edition under /live/)
         run: |
           mkdir -p site/live
-          cp -r pages/. site/
-          cp -r frontend/dist/. site/live/
+          cp -r pages/. site/                      # landing page (replaced below), privacy.html, terms.html
+          cp -r frontend/dist-demo/. site/         # demo edition: index.html + assets
+          cp -r frontend/dist/. site/live/         # live edition
+          pip install --quiet pymupdf==1.28.2
+          python .github/scripts/build_site_files.py site --max-mb 250
+          du -sm site | awk '{print "Site size: " $1 " MB (limit 300 MB)"}'
+          test "$(du -sm site | cut -f1)" -le 300
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

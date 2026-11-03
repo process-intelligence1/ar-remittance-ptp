@@ -36,6 +36,7 @@ export default function Login() {
   const next = params.get("next");
   const target = next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : "/"; // in-app addresses only
   const ended = import.meta.env.VITE_LIVE_ENDED === "true";
+  const demo = ds.kind === "snapshot"; // the demo edition: no server, no access code (public synthetic data)
 
   // As soon as the screen opens: wake the API in the background (it sleeps when idle).
   useEffect(() => {
@@ -83,10 +84,10 @@ export default function Login() {
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit} aria-label="Sign in">
         <h1>AR Remittance &amp; PTP Processing</h1>
-        <div className="sub">Sign in with a demo user and the demo access code.</div>
+        <div className="sub">{demo ? "Pick a demo user - no access code needed. Everything here is synthetic demo data." : "Sign in with a demo user and the demo access code."}</div>
         {ready ? (
           <div className="server-status ready" role="status">
-            Server ready
+            {demo ? "Demo ready" : "Server ready"}
           </div>
         ) : (
           <div className={`server-status ${state}`} role="status">
@@ -108,9 +109,13 @@ export default function Login() {
             </option>
           ))}
         </select>
-        <label htmlFor="access-code">Access code</label>
-        <input id="access-code" type="password" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} disabled={!ready || busy} />
-        <button className="primary" type="submit" disabled={!ready || busy || !code || !user}>
+        {!demo && (
+          <>
+            <label htmlFor="access-code">Access code</label>
+            <input id="access-code" type="password" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} disabled={!ready || busy} />
+          </>
+        )}
+        <button className="primary" type="submit" disabled={!ready || busy || (!demo && !code) || !user}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
         {error && (

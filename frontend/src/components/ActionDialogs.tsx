@@ -125,6 +125,7 @@ function ClarifyDialog({ rows, action, onClose, submit, busy, error }: Common) {
   const send = () =>
     submit(async () => {
       const r = await ds.performAction(row.id, { action, version: row.version, email: { subject, body } });
+      if (ds.kind === "snapshot") return `Clarification for ${row.entry_id} recorded - demo edition: nothing was sent.`;
       return `Clarification for ${row.entry_id} queued — delivered to ${p?.actual_recipient ?? "the demo mailbox"} only (${r.worker_started ? "sending now" : "sent with the next worker run"}).`;
     });
   return (
@@ -135,12 +136,17 @@ function ClarifyDialog({ rows, action, onClose, submit, busy, error }: Common) {
       foot={
         <>
           <button className="dlg-btn" onClick={onClose}>Cancel</button>
-          <button className="dlg-btn primary" disabled={busy || !p || !subject.trim() || !body.trim()} onClick={send}>{busy ? "Working…" : "Send e-mail"}</button>
+          <button className="dlg-btn primary" disabled={busy || !p || !subject.trim() || !body.trim()} onClick={send}>{busy ? "Working…" : ds.kind === "snapshot" ? "Record (nothing is sent)" : "Send e-mail"}</button>
         </>
       }
     >
       <Problems error={error} />
-      {p && (
+      {p && ds.kind === "snapshot" && (
+        <div className="dlg-note">
+          Demo edition: this e-mail would go to <strong>{p.intended_recipient}</strong>. Nothing is sent here - it is only recorded on the case. Template language: {p.language}.
+        </div>
+      )}
+      {p && ds.kind !== "snapshot" && (
         <div className="dlg-note">
           Demo mode: this e-mail is meant for <strong>{p.intended_recipient}</strong> but is delivered to <strong>{p.actual_recipient}</strong> only. Template language: {p.language}.
         </div>

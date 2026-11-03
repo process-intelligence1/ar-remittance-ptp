@@ -78,16 +78,18 @@ class BuildStats:
 
 
 def build_emails(db: Session, codes: list[str], library, business_date: date, *, time_budget_s: float | None = None,
-                 limit: int | None = None, process=None, storage=None) -> BuildStats:
-    """Store and process each history sample as an e-mail dated in the past. Already built samples are skipped."""
+                 limit: int | None = None, process=None, storage=None, source: str = "history",
+                 day_of: dict[str, date] | None = None, shift: bool = True) -> BuildStats:
+    """Store and process each sample as an e-mail dated in the past (source 'history'; M15 also builds the live set as source
+    'sample' dated in the last days before the business date). Already built samples are skipped."""
     from app.gmail.poller import store_email
     from app.gmail.sample_sender import build_message
 
     if process is None:
         from app.pipeline import process_email as process
     stats, started = BuildStats(), time.monotonic()
-    dates = dict(zip(codes, spread_dates(len(codes), business_date)))
-    have = set(db.scalars(select(EmailMessage.sample_code).where(EmailMessage.source == "history")))
+    dates = day_of or dict(zip(codes, spread_dates(len(codes), business_date)))
+    have = set(db.scalars(select(EmailMessage.sample_code).where(EmailMessage.source == source)))
     for i, code in enumerate(codes, start=1):
         if code in have:
             stats.skipped += 1
@@ -103,11 +105,12 @@ def build_emails(db: Session, codes: list[str], library, business_date: date, *,
             when = received_at(dates[code], code)
             raw = build_message(sample, now=when).as_bytes()
             with override_business_date(dates[code]):
-                email = store_email(db, raw, storage=storage, source="history")
+                email = store_email(db, raw, storage=storage, source=source)
                 db.commit()
                 process(db, email, last_attempt=True)
-            shift_dates(db, email, (dates[code] - sample_day(sample)).days)
-            db.commit()
+            if shift:
+                shift_dates(db, email, (dates[code] - sample_day(sample)).days)
+                db.commit()
             stats.built += 1
             log.info("[%d/%d] %s -> %s %s (%.1f s)", i, len(codes), code, email.email_ref, dates[code], time.monotonic() - t0)
         except Exception as exc:  # one broken sample must not stop the build
@@ -116,6 +119,16 @@ def build_emails(db: Session, codes: list[str], library, business_date: date, *,
             log.error("[%d/%d] %s FAILED: %s", i, len(codes), code, exc)
     stats.seconds = time.monotonic() - started
     return stats
+
+
+def last_days(business_date: date, n: int = 3) -> list[date]:
+    """The last n working days up to and including the business date."""
+    return business_days(business_date - timedelta(days=n + 6), business_date)[-n:]
+
+
+def live_set_days(codes: list[str], business_date: date) -> dict[str, date]:
+    days = last_days(business_date)
+    return {c: days[i * len(days) // max(len(codes), 1)] for i, c in enumerate(codes)}
 
 
 # --------------------------------------------------------------------------- step 2: the users work on the rows

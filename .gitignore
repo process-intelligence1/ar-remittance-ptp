@@ -28,3 +28,7 @@ data/runtime/
 .idea/
 Thumbs.db
 .DS_Store
+
+# ---- M15: demo edition build output (made in CI; the committed data is snapshot/) ----
+frontend/dist-demo/
+site-demo/
