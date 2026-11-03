@@ -77,12 +77,12 @@ export function aiExplanation(d: WorkItemDetail): string[] {
   }
   out.push(`The e-mail was read as a ${kind(d)}${who ? ` from ${who}` : ""}${d.invoice_ref ? ` for invoice ${d.invoice_ref}` : ""}.`);
 
-  if (d.match_level === "EXACT" && d.bsid.matched) out.push(`The invoice number matches an open SAP item exactly${d.bsid.document ? ` (document ${d.bsid.document})` : ""}.`);
+  if (d.match_level === "EXACT" && d.bsid?.matched) out.push(`The invoice number matches an open SAP item exactly${d.bsid.document ? ` (document ${d.bsid.document})` : ""}.`);
   else if (d.match_level === "NEAR") out.push("The invoice number is one OCR-confusable character away from an open SAP item, so it may be misread; a person should check it.");
-  else if (!d.bsid.matched) out.push("No open SAP item matches the invoice number.");
+  else if (!d.bsid?.matched) out.push("No open SAP item matches the invoice number.");
 
   const diff = num(s.amount_difference_pct);
-  if (d.bsid.matched && diff !== null) out.push(`The amount differs from the open item by ${Math.abs(diff).toFixed(3)} %.`);
+  if (d.bsid?.matched && diff !== null) out.push(`The amount differs from the open item by ${Math.abs(diff).toFixed(3)} %.`);
 
   const fp = fastPathBanner(d);
   if (conf !== null) {

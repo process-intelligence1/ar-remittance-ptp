@@ -86,9 +86,11 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<TrendPeriod>("month");
   const { data, isLoading, error } = useQuery({ queryKey: ["kpis", filters], queryFn: () => ds.kpis(filters) });
 
-  const perfPlugin = useMemo(() => performanceLabels((data?.charts.performance ?? []).map((p) => p.total)), [data]);
-  const dimPoints = data?.charts.dimensions[dimension] ?? [];
-  const trend = data?.charts.trend[period] ?? [];
+  // During a roll-out the API can still be the old version without chart data: show a note instead of crashing.
+  const charts = data?.charts?.performance && data.charts.dimensions && data.charts.trend ? data.charts : null;
+  const perfPlugin = useMemo(() => performanceLabels((charts?.performance ?? []).map((p) => p.total)), [data]);
+  const dimPoints = charts?.dimensions[dimension] ?? [];
+  const trend = charts?.trend[period] ?? [];
   const pct = (s: { total: number; auto: number }) => (s.total ? Math.round((s.auto / s.total) * 1000) / 10 : 0);
 
   if (error) return <div className="page active"><div className="page-content"><div className="empty-state">Could not load the dashboard: {(error as Error).message}</div></div></div>;
@@ -134,15 +136,16 @@ export default function Dashboard() {
           <div className="chart-card dashboard-chart-card">
             <h3>📊 Performance Stability</h3>
             <div className="chart-wrap" style={{ height: 260 }} data-testid="chart-performance">
-              {data && (
+              {data && !charts && <div className="empty-state" data-testid="chart-unavailable">Chart data unavailable</div>}
+              {charts && (
                 <Bar
                   plugins={[perfPlugin]}
                   data={{
-                    labels: data.charts.performance.map((p) => p.label),
+                    labels: charts.performance.map((p) => p.label),
                     datasets: [
-                      { label: "Auto Processed", data: data.charts.performance.map((p) => p.auto), backgroundColor: COLORS.auto, borderRadius: 3 },
-                      { label: "Manual Processing", data: data.charts.performance.map((p) => p.manual), backgroundColor: COLORS.manual, borderRadius: 3 },
-                      { label: "Exceptions", data: data.charts.performance.map((p) => p.exceptions), backgroundColor: COLORS.exceptions, borderRadius: 3 },
+                      { label: "Auto Processed", data: charts.performance.map((p) => p.auto), backgroundColor: COLORS.auto, borderRadius: 3 },
+                      { label: "Manual Processing", data: charts.performance.map((p) => p.manual), backgroundColor: COLORS.manual, borderRadius: 3 },
+                      { label: "Exceptions", data: charts.performance.map((p) => p.exceptions), backgroundColor: COLORS.exceptions, borderRadius: 3 },
                     ],
                   }}
                   options={{
@@ -170,7 +173,8 @@ export default function Dashboard() {
               </select>
             </div>
             <div className="chart-wrap dimension-scroll-wrap" style={{ height: 320, overflowX: "auto", overflowY: "hidden" }} data-testid="chart-dimension">
-              {data && (
+              {data && !charts && <div className="empty-state" data-testid="chart-unavailable">Chart data unavailable</div>}
+              {charts && (
                 <div style={{ height: 300, width: `max(100%, ${Math.max(500, dimPoints.length * 190)}px)` }}>
                   <Bar
                     plugins={[stackLabels]}
@@ -209,7 +213,8 @@ export default function Dashboard() {
             </select>
           </div>
           <div className="chart-wrap" style={{ height: 280 }} data-testid="chart-trend">
-            {data && (
+            {data && !charts && <div className="empty-state" data-testid="chart-unavailable">Chart data unavailable</div>}
+              {charts && (
               <Line
                 data={{
                   labels: trend.map((t) => t.label),

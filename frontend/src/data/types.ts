@@ -158,7 +158,7 @@ export interface WorkItemDetail extends WorkItemRow {
   evidence: unknown;
   candidates: Candidate[];
   score_breakdown: Record<string, number | string | boolean | null>;
-  bsid: BsidMatch;
+  bsid?: BsidMatch; // missing when the API is an older version
   ptp_commitments: Record<string, unknown>[];
   same_email_items: WorkItemRow[];
   audit: AuditRow[];
@@ -208,7 +208,7 @@ export interface Kpis {
   cards: Record<"total" | "ai" | "manual" | "duplicates" | "exceptions", { count: number; usd: number | null }>;
   usd: { unconverted: number; missing_rate_currencies: Record<string, number>; note: string };
   distributions: Record<"customer" | "region" | "company_code" | "classification" | "status", DistributionPoint[]>;
-  charts: ChartsData;
+  charts?: ChartsData; // missing when the API is an older version
   monthly_trend: { month: string; total: number; ai: number; manual: number; duplicates: number; exceptions: number }[];
   performance_stability: { date: string; rows: number; auto_rate: number | null; avg_confidence: number | null }[];
 }

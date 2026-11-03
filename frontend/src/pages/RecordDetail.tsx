@@ -87,7 +87,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 /** 1. SAP BSID Match - two-column grid like the prototype. */
 function BsidMatch({ d }: { d: WorkItemDetail }) {
-  const b = d.bsid;
+  const b = d.bsid ?? { matched: d.bsid_match }; // older API: no bsid block
   return (
     <Section id="bsid" title="🔗 SAP BSID Match">
       <span className={`badge ${b.matched ? "badge-bsid-yes" : "badge-bsid-no"}`}>{b.matched ? "BSID match: Yes" : "BSID match: No"}</span>
@@ -195,7 +195,7 @@ function Timeline({ rows }: { rows: AuditRow[] }) {
 
 function Pipeline({ d }: { d: WorkItemDetail }) {
   const conf = d.score_breakdown.confidence_score === null ? null : Number(d.score_breakdown.confidence_score);
-  const labels = [CLASS_LABELS[d.classification] ?? d.classification, d.invoice_ref ?? "—", d.bsid.matched ? "Match" : "No Match", conf !== null ? `${conf.toFixed(1)}%` : "—", (d.decision ?? "—").replace(/_/g, " "), d.recommended_action ?? "—"];
+  const labels = [CLASS_LABELS[d.classification] ?? d.classification, d.invoice_ref ?? "—", d.bsid?.matched ?? d.bsid_match ? "Match" : "No Match", conf !== null ? `${conf.toFixed(1)}%` : "—", (d.decision ?? "—").replace(/_/g, " "), d.recommended_action ?? "—"];
   return (
     <div className="decision-pipeline">
       {["Classify", "Extract", "BSID Lookup", "Score", "Decision", "Action"].map((step, i) => (
