@@ -1,6 +1,6 @@
 # M11 - Demo Control and history
 
-Status: built and tested on the laptop (3 Nov 2026). The Azure steps (job, sample upload, history build) are listed below and are NOT done yet.
+Status: built, tested, deployed (ce09dca) and the history built in Azure on 3 Nov 2026 (job ar-history: 187 e-mails in 254 s, 440 actions on 417 rows, 262 exported; promises 7 kept / 6 broken / 9 escalated / 33 open / 3 cancelled across all promises; reset point = 505 work items, 234 e-mails). Still to check: the live Demo Control page and one Reset, by the owner.
 
 ## What a presenter gets
 Page **Demo Control** (any signed-in demo user):
@@ -24,9 +24,9 @@ Page **Demo Control** (any signed-in demo user):
 ## Samples in Azure
 The images do not contain the samples (42 MB). `app/gmail/sample_library.py` reads them from the local folder, or - when it does not exist - from the Blob container under `samples/` (same layout: `samples/emails/<CODE>/...`, `samples/live_set.txt`). Needed for Send sample (live set) and for the history job (history set).
 
-## Azure steps (to do, each with the owner's OK)
+## Azure steps (done 3 Nov 2026; kept as the runbook)
 1. Push, approve the newest deploy run (it runs migration `f8b5c2d0a008`).
-2. Upload the samples to Blob: `az storage blob upload-batch --account-name stardemosnjjnahqgx3b4 -d ar-files -s data/samples --destination-path samples --auth-mode login` (42 MB; use `--auth-mode key` if the account has no data role).
+2. Upload the samples to Blob: `az storage blob upload-batch --account-name stardemosnjjnahqgx3b4 -d ar-files -s data/samples --destination-path samples --auth-mode login --overwrite true` (42 MB, 423 files). Key access is off on the account and the owner needs the role Storage Blob Data Contributor (added in Bicep as `ownerBlob`; the run of deploy.ps1 in step 3 creates it - so do step 3 first).
 3. `.\infra\deploy.ps1 -NoClientIp -ImageTag <sha>`: creates the one-off Container Apps job **ar-history** (full worker image, `python -m scripts.build_history`, manual trigger, 1 vCPU / 2 GiB, 3600 s, no schedule). What-if on 3 Nov 2026: 1 resource to create (ar-history), the rest is the known Bicep noise; as always the script rotates the database password, restarts the API and drops the harmless `TOKEN_REFRESHED_AT` setting.
 4. `az containerapp job start -n ar-history -g rg-ar-demo` and watch its logs. Expect about 30-40 minutes with OCR (the laptop needs 2 minutes because parsing is reused); if it stops out of time it exits 3 - start it again, it continues. At the end it prints `RESET POINT taken`.
 5. Check Demo Control (reset point shown), then Reset once to see it work.
