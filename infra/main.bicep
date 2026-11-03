@@ -258,6 +258,18 @@ resource ownerKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!emp
   }
 }
 
+// The owner may put files into the container (M11: the sample e-mails under samples/). Key access is switched off on the
+// storage account, so this role is the only way for a person to upload.
+resource ownerBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(adminPrincipalId)) {
+  scope: storage
+  name: guid(storage.id, adminPrincipalId, blobDataContributorRole)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRole)
+    principalId: adminPrincipalId
+    principalType: 'User'
+  }
+}
+
 // Settings the API and the worker job share (the worker is the same image with another command)
 var commonEnv = [
   {
