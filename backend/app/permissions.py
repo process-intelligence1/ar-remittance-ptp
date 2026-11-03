@@ -1,4 +1,4 @@
-"""Which actions a role may take on a work item (Knowledge Base table). The actions themselves arrive in M09.
+"""Which actions a role may take on a work item (Knowledge Base table); the actions themselves are in app/actions.py.
 
 Actions offered by the row's decision:
   AUTO_PROCESS          Confirm & Add to Excel
@@ -22,16 +22,22 @@ BY_DECISION = {
     "DUPLICATE": [CLOSE_DUP, CLARIFY, NOT_DUP, EDIT],
 }
 CLOSED_STATUS = ("CONFIRMED", "RESOLVED", "REJECTED", "IGNORED")
+OPEN_WORKFLOW = ("AWAITING_CUSTOMER", "ESCALATED")  # open rows waiting for someone (customer reply / the AR Supervisor)
 SUPERVISOR, ANALYST = "AR_SUPERVISOR", "AR_ANALYST"
+# Action -> status the row gets (None = decided by the action: re-score, close as duplicate ...)
+STATUS_AFTER = {CONFIRM: "CONFIRMED", REJECT: "REJECTED", CLARIFY: "AWAITING_CUSTOMER", ESCALATE: "ESCALATED",
+                CLOSE_DUP: "RESOLVED"}
 
 
 def allowed_actions(role: str, decision: str | None, status: str, assigned_role: str | None,
                     resolved: bool = False) -> list[str]:
     if resolved or status in CLOSED_STATUS or decision not in BY_DECISION:
         return []
-    if decision == "AUTO_PROCESS" and status != "AUTO_PROCESSED":
-        return []
+    if decision == "AUTO_PROCESS" and status not in ("AUTO_PROCESSED", *OPEN_WORKFLOW):
+        return []  # e.g. a high score sent to review because an attachment was unreadable
     actions = BY_DECISION[decision]
+    if status == "ESCALATED":  # handed to the AR Supervisor: only the supervisor acts, and cannot escalate further
+        return [a for a in actions if a != ESCALATE] if role == SUPERVISOR else []
     if role == SUPERVISOR:
         return [a for a in actions if a != ESCALATE]
     if role == ANALYST or assigned_role == role:

@@ -15,15 +15,16 @@ describe("chart data (shared fixture with the backend)", () => {
     expect(periodKey("2026-04-01", "quarter").key).toBe("2026-Q2");
   });
 
-  it("counts confirmed rows as manual and ignores out-of-scope rows", () => {
-    expect(bucketOf("CONFIRMED")).toBe("manual");
-    expect(bucketOf("IGNORED")).toBeNull();
-    expect(bucketOf("RESOLVED", "analyst@x")).toBe("manual");
-    expect(bucketOf("RESOLVED", "system")).toBe("auto");
+  it("follows the decision only (actions never move a row) and ignores out-of-scope rows", () => {
+    expect(["AUTO_PROCESS", "MANUAL_REVIEW", "MANUAL_INVESTIGATION", "EXCEPTION", "DUPLICATE"].map(bucketOf)).toEqual([
+      "auto", "manual", "manual", "exceptions", "duplicates",
+    ]);
+    expect(bucketOf("OUT_OF_SCOPE")).toBeNull();
+    expect(bucketOf(null)).toBeNull();
   });
 
   it("leaves duplicates out of Performance Stability and rows without a value out of a dimension", () => {
-    const c = buildCharts([{ status: "DUPLICATE", classification: "DUPLICATE", customer: "A", region: null, company_code: "1000", day: "2026-01-01" }]);
+    const c = buildCharts([{ decision: "DUPLICATE", classification: "DUPLICATE", customer: "A", region: null, company_code: "1000", day: "2026-01-01" }]);
     expect(c.performance.every((p) => p.total === 0)).toBe(true);
     expect(c.dimensions.region).toEqual([]);
     expect(c.dimensions.customer[0].duplicates).toBe(1);

@@ -4,7 +4,7 @@
     python -m app.worker --loop --interval 60   # keep going (laptop)
     python -m app.worker --once --force-poll    # poll Gmail from here even though POLLER_ENABLED=false
 
-One round: (1) poll Gmail (only where POLLER_ENABLED is true), (2) queue a PROCESS_EMAIL job for every e-mail
+One round: (0) send the e-mails analysts queued (M09), (1) poll Gmail (only where POLLER_ENABLED is true), (2) queue a PROCESS_EMAIL job for every e-mail
 that is not finished and has none, (3) work through due jobs until none is left or the time budget is used,
 (4) PTP checks (placeholder until M10). Several workers may run at once: jobs are claimed with SKIP LOCKED.
 """
@@ -36,12 +36,14 @@ class RoundSummary:
     retried: int = 0
     failed: int = 0
     unfinished: int = 0  # due jobs left because the time budget ran out
+    sent: int = 0        # outbound e-mails sent (M09)
+    send_failed: int = 0
     errors: list[str] = field(default_factory=list)
 
     def line(self) -> str:
         return (f"poll {self.polled} (stored {self.stored}) | queued {self.queued} | done {self.done} | "
                 f"retry scheduled {self.retried} | failed {self.failed} | released {self.released} | "
-                f"left for next round {self.unfinished}")
+                f"left for next round {self.unfinished} | e-mails sent {self.sent} (failed {self.send_failed})")
 
 
 def poll_gmail(db: Session, force: bool, summary: RoundSummary) -> None:
@@ -110,8 +112,21 @@ def work_jobs(db: Session, summary: RoundSummary, budget_s: float) -> None:
     summary.unfinished = len(db_due)
 
 
+def send_outbound(db: Session, summary: RoundSummary) -> None:
+    """Send the e-mails analysts queued (always to the redirect address). First, so a Gmail polling problem cannot hold them back."""
+    from app import outbound
+
+    try:
+        summary.sent, summary.send_failed = outbound.send_queued(db)
+    except Exception as exc:
+        db.rollback()
+        summary.errors.append(f"send: {type(exc).__name__}: {exc}")
+        log.exception("Sending outbound e-mails failed")
+
+
 def run_once(db: Session, *, force_poll: bool = False, budget_s: float | None = None) -> RoundSummary:
     summary = RoundSummary()
+    send_outbound(db, summary)
     poll_gmail(db, force_poll, summary)
     summary.released = jobs.release_stuck(db)
     summary.queued = queue_unfinished(db)

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
-import ActionButtons, { runAction } from "../components/ActionButtons";
-import { useToast } from "../components/Toasts";
+import ActionButtons from "../components/ActionButtons";
+import { useActions } from "../components/ActionDialogs";
 import type { ActionCode, Attachment, AuditRow, WorkItemDetail } from "../data";
 import { evidenceBoxes } from "../data/evidence";
 import { aiExplanation, confidenceBadge, confidenceRows, fastPathBanner } from "../data/explain";
@@ -194,7 +194,7 @@ function Pipeline({ d }: { d: WorkItemDetail }) {
 
 export default function RecordDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { ds } = useAuth();
-  const toast = useToast();
+  const actions = useActions();
   const { data: d, isLoading, error } = useQuery({ queryKey: ["workItem", id], queryFn: () => ds.workItem(id) });
   const boxes = useMemo(() => evidenceBoxes(d?.evidence), [d?.evidence]);
   useEffect(() => {
@@ -283,13 +283,16 @@ export default function RecordDetail({ id, onClose }: { id: string; onClose: () 
               </Section>
               <Section id="actions" title="⚡ Actions">
                 <div style={{ marginBottom: 8 }}><span className={`badge ${STATUS_BADGE[d.status] ?? ""}`}>{STATUS_LABELS[d.status] ?? d.status}</span></div>
-                <ActionButtons actions={d.allowed_actions} onAction={(a: ActionCode) => runAction(ds, toast, a, [d.id])} />
+                <ActionButtons actions={d.allowed_actions} onAction={(a: ActionCode) => actions.start(a, [d])} />
                 {d.recommended_action && <div className="text-xs text-muted" style={{ marginTop: 6 }}>Recommended: {d.recommended_action}</div>}
+                {d.confirmed_by && <div className="text-xs text-muted" style={{ marginTop: 6 }}>Confirmed by {d.confirmed_by} on {dateTime(d.confirmed_at)}{d.exported_at ? ` · downloaded ${dateTime(d.exported_at)}` : ""}</div>}
+                {d.action_comment && <div className="text-xs text-muted" style={{ marginTop: 6 }}>Last comment: {d.action_comment}</div>}
               </Section>
             </>
           )}
         </div>
       </div>
+      {actions.dialog}
     </div>
   );
 }

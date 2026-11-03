@@ -101,6 +101,10 @@ def store_email(db: Session, raw: bytes, *, storage: Storage | None = None, gmai
     )
     db.add(email)
     db.flush()
+    if thread_id:  # M09: an answer to a clarification e-mail we sent joins that case
+        from app import outbound
+
+        outbound.attach_reply(db, email)
 
     errors: list[str] = []
     counter = 0

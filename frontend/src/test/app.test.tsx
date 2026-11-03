@@ -183,10 +183,11 @@ describe("Action Queue", () => {
     fireEvent.click(screen.getByLabelText("Select ENT-000002"));
     const names = within(bulk).getAllByRole("option").map((o) => o.textContent);
     expect(names).not.toContain("Confirm & Add to Excel (2)"); // not valid for row 2
-    expect(names).toEqual(expect.arrayContaining(["Reject Record", "Request Clarification"]));
+    expect(names).toContain("Reject Record");
+    expect(names).not.toContain("Request Clarification"); // needs its own e-mail text, so it is never a bulk action
   });
 
-  it("an action tells the user it arrives in M09 (through the data layer)", async () => {
+  it("an action goes through the data layer with the row version", async () => {
     signedIn();
     const performAction = vi.fn(fakeDs().performAction);
     renderApp(fakeDs({ performAction }), "#/queue");
@@ -194,8 +195,8 @@ describe("Action Queue", () => {
     fireEvent.click(screen.getByLabelText("Select ENT-000001"));
     fireEvent.change(screen.getByLabelText("Bulk action"), { target: { value: "CONFIRM_ADD_EXCEL" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply to Selected" }));
-    expect(await screen.findByText(/available in M09/)).toBeInTheDocument();
-    expect(performAction).toHaveBeenCalledWith({ action: "CONFIRM_ADD_EXCEL", ids: [1] });
+    fireEvent.click(within(await screen.findByRole("dialog", { name: "Confirm & Add to Excel" })).getByRole("button", { name: "Confirm & Add to Excel" }));
+    await waitFor(() => expect(performAction).toHaveBeenCalledWith(1, { action: "CONFIRM_ADD_EXCEL", version: 1, comment: undefined }));
   });
 
   it("the picked columns are remembered", async () => {

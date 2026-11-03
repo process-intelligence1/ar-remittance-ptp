@@ -19,7 +19,7 @@ FIXTURE = json.loads((Path(__file__).resolve().parents[2] / "data" / "eval" / "d
 
 
 def _items(rows):
-    return [ChartInput(bucket_of(r["status"], r.get("resolved_by")), r["classification"], r["customer"], r["region"],
+    return [ChartInput(bucket_of(r["decision"]), r["classification"], r["customer"], r["region"],
                        r["company_code"], date.fromisoformat(r["day"])) for r in rows]
 
 
@@ -35,8 +35,10 @@ def test_periods_are_iso_weeks_and_calendar_months_and_quarters():
     assert period_key(date(2026, 4, 1), "quarter")[0] == "2026-Q2"
 
 
-def test_confirmed_rows_count_as_manual_and_duplicates_are_not_in_performance():
-    assert bucket_of("CONFIRMED") == "manual" and bucket_of("IGNORED") is None
+def test_buckets_follow_the_decision_and_duplicates_are_not_in_performance():
+    assert [bucket_of(d) for d in ("AUTO_PROCESS", "MANUAL_REVIEW", "MANUAL_INVESTIGATION", "EXCEPTION", "DUPLICATE")] == \
+        ["auto", "manual", "manual", "exceptions", "duplicates"]
+    assert bucket_of("OUT_OF_SCOPE") is None and bucket_of(None) is None
     perf = build_charts([ChartInput("duplicates", "DUPLICATE", "A", "R", "1000", date(2026, 1, 1))])["performance"]
     assert all(p["total"] == 0 for p in perf)
 

@@ -1,6 +1,12 @@
 import {
+  ActionError,
+  type ActionOutcome,
   type ActionRequest,
-  type ActionResult,
+  type BsidChoice,
+  type BulkOutcome,
+  type BulkRequest,
+  type EmailPreview,
+  type ExportedCases,
   type AttachmentLayout,
   type AuditRow,
   type Changes,
@@ -10,7 +16,6 @@ import {
   type Kpis,
   type ListParams,
   NetworkError,
-  NotAvailableError,
   type Page,
   type Session,
   UnauthorizedError,
@@ -66,10 +71,15 @@ export class LiveDataSource implements DataSource {
       try {
         const body = await res.json();
         if (typeof body?.detail === "string") detail = body.detail;
-      } catch {
+        else if (body?.detail?.message) {
+          // an action refused by the server: {message, problems: [{entry_id, message}]}
+          throw new ActionError(String(body.detail.message), res.status, body.detail.problems ?? []);
+        } else if (Array.isArray(body?.detail)) detail = body.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ") || detail;
+      } catch (e) {
+        if (e instanceof ActionError) throw e;
         /* keep the status text */
       }
-      throw new Error(detail);
+      throw res.status === 409 || res.status === 403 || res.status === 422 ? new ActionError(detail, res.status) : new Error(detail);
     }
     return (await res.json()) as T;
   }
@@ -115,8 +125,28 @@ export class LiveDataSource implements DataSource {
     return this.request(`/api/attachments/${id}/layout`);
   }
 
-  async performAction(_request: ActionRequest): Promise<ActionResult> {
-    // Actions (Confirm & Add to Excel, Reject, ...) are built in M09.
-    throw new NotAvailableError("This action is available in M09.");
+  performAction(id: number | string, request: ActionRequest): Promise<ActionOutcome> {
+    return this.request(`/api/work-items/${encodeURIComponent(String(id))}/actions`, { method: "POST", body: JSON.stringify(request) });
+  }
+
+  performBulk(request: BulkRequest): Promise<BulkOutcome> {
+    return this.request("/api/work-items/bulk-actions", { method: "POST", body: JSON.stringify(request) });
+  }
+
+  previewEmail(id: number | string, question?: string): Promise<EmailPreview> {
+    return this.request(`/api/work-items/${encodeURIComponent(String(id))}/outbound-preview`, { method: "POST", body: JSON.stringify({ question: question || null }) });
+  }
+
+  bsidChoices(id: number | string, q?: string): Promise<BsidChoice[]> {
+    return this.request(`/api/work-items/${encodeURIComponent(String(id))}/bsid-candidates${toQuery({ q })}`);
+  }
+
+  exportedCases(): Promise<ExportedCases> {
+    return this.request("/api/exports/cases");
+  }
+
+  async markExported(entryIds?: string[]): Promise<number> {
+    const r = await this.request<{ marked: number }>("/api/exports/cases/mark-exported", { method: "POST", body: JSON.stringify({ entry_ids: entryIds ?? null }) });
+    return r.marked;
   }
 }

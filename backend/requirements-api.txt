@@ -10,6 +10,8 @@ psycopg[binary]==3.2.3
 alembic==1.14.0
 # Settings
 pydantic-settings==2.6.1
+# Outbound e-mail templates (M09)
+Jinja2==3.1.6
 # Gmail API (admin poll endpoint)
 google-api-python-client==2.201.0
 google-auth==2.62.0

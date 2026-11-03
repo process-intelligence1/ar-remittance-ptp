@@ -88,6 +88,12 @@ export interface WorkItemRow {
   sla_due_at: string | null;
   duplicate_of: string | null;
   updated_at: string;
+  /** row version: every action must send the version the user saw (a stale one is refused with 409) */
+  version: number;
+  action_comment?: string | null;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+  exported_at?: string | null;
   allowed_actions: ActionCode[];
 }
 
@@ -235,16 +241,111 @@ export interface AttachmentLayout {
   layout: unknown;
 }
 
+/** One action on one record (Add / Update details sends `details`, Request Clarification sends `email`). */
 export interface ActionRequest {
   action: ActionCode;
-  ids: number[];
+  version: number;
   comment?: string;
-  payload?: Record<string, unknown>;
+  details?: DetailsInput;
+  email?: { subject: string; body: string };
 }
 
-export interface ActionResult {
-  ok: boolean;
-  message: string;
+/** The fields an analyst may change in "Add / Update Invoice Details" (any of them), and the BSID item picked by hand. */
+export interface DetailsInput {
+  invoice_ref?: string;
+  amount?: string;
+  currency?: string;
+  payment_date?: string;
+  payment_reference?: string;
+  kunnr?: string;
+  bukrs?: string;
+  bsid_id?: number;
+}
+
+export interface ActionOutcome {
+  item: WorkItemRow;
+  outbound_id: number | null;
+  /** true when the e-mail job was started at once; false = it is sent by the next scheduled run; null = no e-mail */
+  worker_started: boolean | null;
+}
+
+export interface BulkRequest {
+  action: ActionCode;
+  comment?: string;
+  items: { id: number | string; version: number }[];
+}
+
+export interface BulkOutcome {
+  done: number;
+  items: WorkItemRow[];
+}
+
+export interface EmailPreview {
+  subject: string;
+  body: string;
+  language: string;
+  intended_recipient: string;
+  actual_recipient: string;
+  template: string;
+}
+
+/** An open BSID item the analyst can pick in the details dialog. */
+export interface BsidChoice {
+  id: number;
+  bukrs: string;
+  kunnr: string;
+  customer_name: string | null;
+  belnr: string;
+  gjahr: string;
+  buzei: string;
+  xblnr: string | null;
+  amount: number;
+  waers: string;
+  bldat: string | null;
+  source: "candidate" | "customer" | "search";
+  selected: boolean;
+}
+
+/** One confirmed case = one row of the "Exported cases" Excel view and of the downloaded file. */
+export interface ExportedCase {
+  entry_id: string;
+  email_ref: string;
+  received_at: string | null;
+  sender_email: string | null;
+  kunnr: string | null;
+  customer_name: string | null;
+  company_code: string | null;
+  invoice_ref: string | null;
+  belnr: string | null;
+  gjahr: string | null;
+  buzei: string | null;
+  invoice_amount: number | null;
+  invoice_currency: string | null;
+  paid_amount: number | null;
+  paid_currency: string | null;
+  difference: number | null;
+  payment_date: string | null;
+  payment_reference: string | null;
+  match_level: string | null;
+  confidence: number | null;
+  decision: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  comment: string | null;
+  exported_at: string | null;
+  exported_by: string | null;
+}
+
+export interface ExportedCases {
+  count: number;
+  items: ExportedCase[];
+}
+
+/** The server refused an action: `status` 409 = changed by someone else, 403 = not allowed, 422 = not valid. */
+export class ActionError extends Error {
+  constructor(message: string, public status: number, public problems: { entry_id: string; message: string }[] = []) {
+    super(message);
+  }
 }
 
 export class NotAvailableError extends Error {}
@@ -268,6 +369,14 @@ export interface DataSource {
   attachmentLayout(id: number): Promise<AttachmentLayout>;
   /** turns a (possibly relative) signed link from the API into a URL the browser can load */
   resolveUrl(url: string): string;
-  /** actions of the Action Queue / Record Detail (built in M09) */
-  performAction(request: ActionRequest): Promise<ActionResult>;
+  /** actions of the Action Queue / Record Detail (M09); all of them go through here, in both editions */
+  performAction(id: number | string, request: ActionRequest): Promise<ActionOutcome>;
+  /** one action on several records - all or nothing */
+  performBulk(request: BulkRequest): Promise<BulkOutcome>;
+  previewEmail(id: number | string, question?: string): Promise<EmailPreview>;
+  bsidChoices(id: number | string, q?: string): Promise<BsidChoice[]>;
+  /** ALL confirmed cases (the Excel view and the file) */
+  exportedCases(): Promise<ExportedCases>;
+  /** records exported_at / exported_by for the downloaded cases */
+  markExported(entryIds?: string[]): Promise<number>;
 }

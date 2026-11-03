@@ -56,6 +56,7 @@ class EmailMessage(Base):
     gmail_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     rfc_message_id: Mapped[str | None] = mapped_column(String(300))
     thread_id: Mapped[str | None] = mapped_column(String(64))
+    parent_email_id: Mapped[int | None] = mapped_column(ForeignKey(f"{SCHEMA}.email_message.id", ondelete="SET NULL"))  # M09: the e-mail this reply answers
     sample_code: Mapped[str | None] = mapped_column(String(20))  # e.g. R01-0007
     from_email: Mapped[str | None] = mapped_column(String(200))  # real From: header (the forwarder, if forwarded)
     is_forwarded: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
@@ -280,8 +281,17 @@ class WorkItem(Base):
     execution_ms: Mapped[int | None] = mapped_column(Integer)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolved_by: Mapped[str | None] = mapped_column(String(120))
+    # M09: optimistic concurrency (every ORM update bumps it; actions must send the version they saw) and export trail
+    row_version: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False, default=1)
+    confirmed_by: Mapped[str | None] = mapped_column(String(120))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    action_comment: Mapped[str | None] = mapped_column(Text)  # comment given with the last action
+    exported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    exported_by: Mapped[str | None] = mapped_column(String(120))
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __mapper_args__ = {"version_id_col": row_version}
 
 
 class MatchCandidate(Base):
@@ -333,7 +343,11 @@ class OutboundMessage(Base):
     subject: Mapped[str] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text)
     gmail_message_id: Mapped[str | None] = mapped_column(String(64))
-    status: Mapped[str] = mapped_column(String(20), default="DRAFT")  # DRAFT | SENT | FAILED
+    gmail_thread_id: Mapped[str | None] = mapped_column(String(64))  # the customer's thread, so replies find the case
+    language: Mapped[str | None] = mapped_column(String(10))  # template language (KNA1.SPRAS)
+    template: Mapped[str | None] = mapped_column(String(40))
+    error: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="DRAFT")  # DRAFT | QUEUED | SENT | FAILED | CANCELLED
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[str | None] = mapped_column(String(120))
     created_at: Mapped[datetime] = _created()

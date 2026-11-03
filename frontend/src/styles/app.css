@@ -37,3 +37,46 @@
 .ended-card { max-width: 520px; margin: 80px auto; text-align: center; }
 .ended-card a { display: inline-block; margin-top: 14px; padding: 10px 18px; border-radius: 6px; background: var(--c-primary); color: #fff; text-decoration: none; font-weight: 600; }
 .modal-panel.wide { width: min(1180px, 96vw); max-width: 96vw; }
+
+/* ===== M09: new statuses, action dialogs, Exported cases (Excel look) ===== */
+.badge-awaiting { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+.badge-escalated { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.dlg-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 6000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dlg { background: var(--c-surface); border-radius: 10px; width: min(560px, 100%); max-height: 92vh; overflow: auto; box-shadow: var(--c-shadow-lg); }
+.dlg.wide { width: min(860px, 100%); }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--c-border); }
+.dlg-head h2 { font-size: 15px; margin: 0; }
+.dlg-body { padding: 16px 18px; }
+.dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--c-border); }
+.dlg-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.dlg-field label { font-size: 11px; font-weight: 600; color: var(--c-text3); text-transform: uppercase; letter-spacing: .4px; }
+.dlg-field input, .dlg-field textarea, .dlg-field select { border: 1px solid var(--c-border); border-radius: 6px; padding: 7px 10px; font: inherit; font-size: 13px; background: var(--c-surface); color: var(--c-text); }
+.dlg-field textarea { min-height: 90px; resize: vertical; line-height: 1.45; }
+.dlg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+@media (max-width: 640px) { .dlg-grid { grid-template-columns: 1fr; } }
+.dlg-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 6px; padding: 8px 12px; font-size: 12px; margin-bottom: 12px; }
+.dlg-note { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 6px; padding: 8px 12px; font-size: 12px; margin-bottom: 12px; }
+.dlg-list { max-height: 220px; overflow: auto; border: 1px solid var(--c-border); border-radius: 6px; }
+.dlg-list table { width: 100%; font-size: 12px; }
+.dlg-list tr.picked { background: var(--c-primary-bg); }
+.dlg-btn { height: 34px; padding: 0 16px; border-radius: 6px; border: 1px solid var(--c-border); background: var(--c-surface); cursor: pointer; font-weight: 600; font-size: 13px; }
+.dlg-btn.primary { background: var(--c-primary); color: #fff; border-color: var(--c-primary); }
+.dlg-btn.danger { background: var(--c-danger); color: #fff; border-color: var(--c-danger); }
+.dlg-btn:disabled { opacity: .5; cursor: not-allowed; }
+.xl { display: flex; flex-direction: column; height: min(86vh, 760px); background: #fff; border-radius: 10px; overflow: hidden; width: min(1280px, 98vw); box-shadow: var(--c-shadow-lg); }
+.xl-title { background: #217346; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; font-size: 13px; font-weight: 600; }
+.xl-title button { height: 28px; padding: 0 12px; border-radius: 4px; border: 1px solid #ffffff88; background: #1a5c38; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
+.xl-title button:disabled { opacity: .5; cursor: not-allowed; }
+.xl-title .xl-close { background: transparent; border: 0; font-size: 16px; }
+.xl-sheet { flex: 1; overflow: auto; background: #fff; }
+.xl-sheet table { border-collapse: collapse; font-size: 12px; font-family: Calibri, "Segoe UI", Arial, sans-serif; }
+.xl-sheet th, .xl-sheet td { border: 1px solid #d4d4d4; padding: 2px 6px; white-space: nowrap; height: 22px; }
+.xl-sheet thead th { position: sticky; top: 0; background: #e6e6e6; color: #444; font-weight: 600; text-align: center; z-index: 2; }
+.xl-sheet thead tr.xl-heads th { top: 23px; background: #f3f3f3; color: #000; text-align: left; }
+.xl-sheet .xl-rownum { background: #e6e6e6; color: #444; text-align: center; position: sticky; left: 0; z-index: 1; min-width: 34px; }
+.xl-sheet thead th.xl-corner { left: 0; z-index: 3; }
+.xl-sheet td.num { text-align: right; }
+.xl-tabs { display: flex; gap: 2px; background: #f3f3f3; border-top: 1px solid #c8c8c8; padding: 4px 8px 0; }
+.xl-tabs button { border: 1px solid #c8c8c8; border-bottom: 0; background: #e9e9e9; padding: 4px 16px; font-size: 12px; cursor: pointer; border-radius: 4px 4px 0 0; }
+.xl-tabs button.active { background: #fff; color: #217346; font-weight: 700; border-top: 2px solid #217346; }
+.xl-empty { padding: 40px; text-align: center; color: #666; font-size: 13px; }

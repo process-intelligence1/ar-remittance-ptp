@@ -3,9 +3,8 @@ import { type ColumnDef, flexRender, getCoreRowModel, type VisibilityState, useR
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { runAction } from "../components/ActionButtons";
+import { BULK_ACTIONS, useActions } from "../components/ActionDialogs";
 import FilterBar from "../components/Filters";
-import { useToast } from "../components/Toasts";
 import type { ActionCode, Filters, WorkItemRow } from "../data";
 import { ACTION_LABELS, CLASS_LABELS, STATUS_BADGE, STATUS_LABELS, dateOnly, dateTime, money } from "../data/labels";
 import ExportedCases from "../components/ExportedCases";
@@ -69,7 +68,6 @@ function loadVisibility(): VisibilityState {
 
 export default function Queue() {
   const { ds, session } = useAuth();
-  const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(1);
@@ -80,6 +78,7 @@ export default function Queue() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<ActionCode | "">("");
   const [exportedOpen, setExportedOpen] = useState(false);
+  const actions = useActions(() => setSelected(new Map()));
   // confirmed cases = the export list ("Exported cases (n)")
   const confirmed = useQuery({ queryKey: ["workItems", "confirmed-count"], queryFn: () => ds.workItems({ status: "CONFIRMED", page_size: 1 }) });
 
@@ -91,6 +90,19 @@ export default function Queue() {
   });
   const rows = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
+  // keep the selected rows (and their versions) in step with what the server shows now
+  useEffect(() => {
+    setSelected((m) => {
+      if (m.size === 0 || rows.length === 0) return m;
+      let changed = false;
+      const next = new Map(m);
+      for (const r of rows) {
+        const old = next.get(r.id);
+        if (old && old.version !== r.version) { next.set(r.id, r); changed = true; }
+      }
+      return changed ? next : m;
+    });
+  }, [rows]);
 
   const table = useReactTable({
     data: rows, columns: COLUMNS, getCoreRowModel: getCoreRowModel(), state: { columnVisibility: visibility },
@@ -104,7 +116,7 @@ export default function Queue() {
   // only actions valid for EVERY selected row are offered
   const bulkActions = useMemo(() => {
     if (selectedRows.length === 0) return [] as ActionCode[];
-    return selectedRows.map((r) => r.allowed_actions).reduce((a, b) => a.filter((x) => b.includes(x)));
+    return selectedRows.map((r) => r.allowed_actions).reduce((a, b) => a.filter((x) => b.includes(x))).filter((x) => BULK_ACTIONS.includes(x));
   }, [selectedRows]);
   useEffect(() => { if (bulkAction && !bulkActions.includes(bulkAction)) setBulkAction(""); }, [bulkActions, bulkAction]);
 
@@ -113,7 +125,7 @@ export default function Queue() {
   const close = () => setParams({});
   const sortBy = (id: string) => SORTABLE[id] && setSort((s) => ({ id, desc: s.id === id ? !s.desc : true }));
 
-  const apply = () => bulkAction && runAction(ds, toast, bulkAction, selectedRows.map((r) => r.id));
+  const apply = () => bulkAction && actions.start(bulkAction, selectedRows);
 
   return (
     <div className="page active" id="page-queue">
@@ -213,7 +225,8 @@ export default function Queue() {
         </div>
       </div>
       {openId && session && <RecordDetail id={openId} onClose={close} />}
-      {exportedOpen && <ExportedCases count={confirmed.data?.total ?? 0} onClose={() => setExportedOpen(false)} />}
+      {actions.dialog}
+      {exportedOpen && <ExportedCases onClose={() => setExportedOpen(false)} />}
     </div>
   );
 }

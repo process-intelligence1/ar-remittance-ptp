@@ -6,8 +6,7 @@ import type { ChartsData, ChartDimension, DimensionPoint, PerformancePoint, Tren
 export type Bucket = "auto" | "manual" | "duplicates" | "exceptions";
 
 export interface ChartRow {
-  status: string;
-  resolved_by?: string | null;
+  decision: string | null;
   classification: string;
   customer: string | null;
   region: string | null;
@@ -20,12 +19,13 @@ const DIMENSIONS: ChartDimension[] = ["customer", "region", "company_code"];
 const PERIODS: TrendPeriod[] = ["date", "week", "month", "quarter"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export function bucketOf(status: string, resolvedBy?: string | null): Bucket | null {
-  if (status === "DUPLICATE") return "duplicates";
-  if (status === "EXCEPTION") return "exceptions";
-  if (status === "AUTO_PROCESSED" || (status === "RESOLVED" && (resolvedBy || "system") === "system")) return "auto";
-  if (["PENDING_REVIEW", "RESOLVED", "REJECTED", "CONFIRMED"].includes(status)) return "manual";
-  return null;
+const BUCKET_BY_DECISION: Record<string, Bucket> = {
+  AUTO_PROCESS: "auto", MANUAL_REVIEW: "manual", MANUAL_INVESTIGATION: "manual", EXCEPTION: "exceptions", DUPLICATE: "duplicates",
+};
+
+/** Decision-based on purpose: confirming, rejecting, escalating ... changes a row's status, never its bucket. */
+export function bucketOf(decision: string | null | undefined): Bucket | null {
+  return BUCKET_BY_DECISION[decision ?? ""] ?? null;
 }
 
 function parseDay(day: string): { y: number; m: number; d: number; date: Date } {
@@ -72,7 +72,7 @@ export function buildCharts(rows: ChartRow[]): ChartsData {
   const trend: Record<TrendPeriod, Map<string, TrendPoint>> = { date: new Map(), week: new Map(), month: new Map(), quarter: new Map() };
 
   for (const r of rows) {
-    const b = bucketOf(r.status, r.resolved_by);
+    const b = bucketOf(r.decision);
     if (r.classification in perf && (b === "auto" || b === "manual" || b === "exceptions")) perf[r.classification][b] += 1;
     for (const dim of DIMENSIONS) {
       const v = known(r[dim]);

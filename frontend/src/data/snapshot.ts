@@ -1,6 +1,11 @@
 import {
+  type ActionOutcome,
   type ActionRequest,
-  type ActionResult,
+  type BsidChoice,
+  type BulkOutcome,
+  type BulkRequest,
+  type EmailPreview,
+  type ExportedCases,
   type AttachmentLayout,
   type AuditRow,
   type Changes,
@@ -62,7 +67,22 @@ export class SnapshotDataSource implements DataSource {
   async attachmentLayout(_id: number): Promise<AttachmentLayout> {
     throw later("Attachment layout");
   }
-  async performAction(_r: ActionRequest): Promise<ActionResult> {
+  async performAction(_id: number | string, _r: ActionRequest): Promise<ActionOutcome> {
     throw later("Actions");
+  }
+  async performBulk(_r: BulkRequest): Promise<BulkOutcome> {
+    throw later("Bulk actions");
+  }
+  async previewEmail(_id: number | string, _q?: string): Promise<EmailPreview> {
+    throw later("E-mail preview");
+  }
+  async bsidChoices(_id: number | string, _q?: string): Promise<BsidChoice[]> {
+    throw later("BSID items");
+  }
+  async exportedCases(): Promise<ExportedCases> {
+    throw later("Exported cases");
+  }
+  async markExported(_ids?: string[]): Promise<number> {
+    throw later("Exported cases");
   }
 }

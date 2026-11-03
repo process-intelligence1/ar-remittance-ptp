@@ -1,15 +1,15 @@
 {
   "_note": "Shared by backend/tests/test_charts.py and frontend/src/test/charts.test.ts: the same rows must give the same chart data in both.",
   "rows": [
-    {"status": "AUTO_PROCESSED", "classification": "REMITTANCE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-12"},
-    {"status": "AUTO_PROCESSED", "classification": "REMITTANCE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-13"},
-    {"status": "PENDING_REVIEW", "classification": "REMITTANCE", "customer": "Beta", "region": "APAC", "company_code": "2000", "day": "2026-10-13"},
-    {"status": "EXCEPTION", "classification": "REMITTANCE", "customer": "Beta", "region": null, "company_code": "2000", "day": "2026-11-02"},
-    {"status": "AUTO_PROCESSED", "classification": "PTP", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-12"},
-    {"status": "CONFIRMED", "classification": "PTP", "customer": "Gamma", "region": "AMER", "company_code": "3000", "day": "2026-01-05"},
-    {"status": "DUPLICATE", "classification": "DUPLICATE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-14"},
-    {"status": "IGNORED", "classification": "OUT_OF_SCOPE", "customer": null, "region": null, "company_code": null, "day": "2026-10-14"},
-    {"status": "RESOLVED", "classification": "REMITTANCE", "customer": "Unknown", "region": "N/A", "company_code": "1000", "day": "2026-12-30", "resolved_by": "analyst@acme-demo.local"}
+    {"status": "AUTO_PROCESSED", "decision": "AUTO_PROCESS", "classification": "REMITTANCE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-12"},
+    {"status": "AUTO_PROCESSED", "decision": "AUTO_PROCESS", "classification": "REMITTANCE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-13"},
+    {"status": "PENDING_REVIEW", "decision": "MANUAL_REVIEW", "classification": "REMITTANCE", "customer": "Beta", "region": "APAC", "company_code": "2000", "day": "2026-10-13"},
+    {"status": "EXCEPTION", "decision": "EXCEPTION", "classification": "REMITTANCE", "customer": "Beta", "region": null, "company_code": "2000", "day": "2026-11-02"},
+    {"status": "AUTO_PROCESSED", "decision": "AUTO_PROCESS", "classification": "PTP", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-12"},
+    {"status": "CONFIRMED", "decision": "MANUAL_REVIEW", "classification": "PTP", "customer": "Gamma", "region": "AMER", "company_code": "3000", "day": "2026-01-05"},
+    {"status": "DUPLICATE", "decision": "DUPLICATE", "classification": "DUPLICATE", "customer": "Acme", "region": "EMEA", "company_code": "1000", "day": "2026-10-14"},
+    {"status": "IGNORED", "decision": "OUT_OF_SCOPE", "classification": "OUT_OF_SCOPE", "customer": null, "region": null, "company_code": null, "day": "2026-10-14"},
+    {"status": "RESOLVED", "decision": "MANUAL_REVIEW", "classification": "REMITTANCE", "customer": "Unknown", "region": "N/A", "company_code": "1000", "day": "2026-12-30", "resolved_by": "analyst@acme-demo.local"}
   ],
   "expected": {
     "performance": [

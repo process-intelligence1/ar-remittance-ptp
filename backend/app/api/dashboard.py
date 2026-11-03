@@ -25,16 +25,9 @@ TOP_CUSTOMERS = 10
 
 
 def bucket(w: WorkItem) -> str:
-    """The Dashboard's processing buckets."""
-    if w.status == "DUPLICATE":
-        return "duplicates"
-    if w.status == "EXCEPTION":
-        return "exceptions"
-    if w.status == "AUTO_PROCESSED" or (w.status == "RESOLVED" and (w.resolved_by or "system") == "system"):
-        return "ai"
-    if w.status in ("PENDING_REVIEW", "RESOLVED", "REJECTED", "CONFIRMED"):
-        return "manual"
-    return "other"  # IGNORED (out of scope)
+    """The Dashboard's processing buckets - by DECISION, so actions (confirm, reject, ...) never move a row."""
+    b = bucket_of(w.decision)
+    return "ai" if b == "auto" else (b or "other")  # other = out of scope
 
 
 def trend_day(w: WorkItem, e: EmailMessage) -> date | None:
@@ -69,7 +62,7 @@ def kpis(f: Filters = Depends(filters), user: CurrentUser = Depends(current_user
             unconverted += 1
             missing[w.currency] += 1
         b = bucket(w)
-        chart_items.append(ChartInput(bucket_of(w.status, w.resolved_by), w.final_classification, w.customer_name, w.region,
+        chart_items.append(ChartInput(bucket_of(w.decision),w.final_classification, w.customer_name, w.region,
                                       w.bukrs, trend_day(w, e)))
         keys = ["total"] + ([b] if b in cards else [])
         for k in keys:

@@ -190,14 +190,16 @@ describe("explanation rules", () => {
 });
 
 describe("Exported cases button and the renamed action", () => {
-  it("shows 'Exported cases (n)' at the top right of the Action Queue and opens the placeholder", async () => {
+  it("shows 'Exported cases (n)' at the top right of the Action Queue and opens the Excel view", async () => {
     signedIn();
     const workItems = vi.fn(async (p: { status?: string }) => ({ total: p.status === "CONFIRMED" ? 4 : 1, page: 1, page_size: 25, items: p.status === "CONFIRMED" ? [] : [row()] }));
     renderApp(fakeDs({ workItems }), "#/queue");
     const button = await screen.findByTestId("exported-cases-button");
     await waitFor(() => expect(button).toHaveTextContent("Exported cases (4)"));
     fireEvent.click(button);
-    expect(await screen.findByRole("dialog", { name: "Exported cases" })).toHaveTextContent("Available with module M09");
+    const dlg = await screen.findByRole("dialog", { name: "Exported cases" });
+    expect(dlg).toHaveTextContent("Download .xlsx");
+    expect(await within(dlg).findByText(/No confirmed cases yet/)).toBeInTheDocument();
   });
 
   it("calls the button 'Confirm & Add to Excel' and never 'Extract' or 'Update SAP'", () => {

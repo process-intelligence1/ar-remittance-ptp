@@ -3,7 +3,7 @@ function for the demo edition (frontend/src/data/charts.ts); both are tested aga
 (data/eval/dashboard_charts_fixture.json), so live and snapshot mode show identical numbers.
 
 Buckets of a work item: auto (Auto Processed), manual (Manual Processing), duplicates, exceptions; out-of-scope rows
-(status IGNORED) belong to none.
+(decision OUT_OF_SCOPE) belong to none. The bucket follows the row's decision only (never its workflow status).
 """
 from collections import defaultdict
 from dataclasses import dataclass
@@ -15,16 +15,13 @@ PERIODS = ("date", "week", "month", "quarter")
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
-def bucket_of(status: str, resolved_by: str | None = None) -> str | None:
-    if status == "DUPLICATE":
-        return "duplicates"
-    if status == "EXCEPTION":
-        return "exceptions"
-    if status == "AUTO_PROCESSED" or (status == "RESOLVED" and (resolved_by or "system") == "system"):
-        return "auto"
-    if status in ("PENDING_REVIEW", "RESOLVED", "REJECTED", "CONFIRMED"):
-        return "manual"
-    return None  # IGNORED / out of scope
+BUCKET_BY_DECISION = {"AUTO_PROCESS": "auto", "MANUAL_REVIEW": "manual", "MANUAL_INVESTIGATION": "manual",
+                      "EXCEPTION": "exceptions", "DUPLICATE": "duplicates"}
+
+
+def bucket_of(decision: str | None) -> str | None:
+    """Decision-based on purpose: confirming, rejecting, escalating ... a row changes its status, never its bucket."""
+    return BUCKET_BY_DECISION.get(decision or "")  # OUT_OF_SCOPE / no decision: in none
 
 
 @dataclass(frozen=True)

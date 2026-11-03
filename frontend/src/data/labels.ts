@@ -19,6 +19,8 @@ export const STATUS_LABELS: Record<string, string> = {
   CONFIRMED: "Confirmed",
   RESOLVED: "Resolved",
   REJECTED: "Rejected",
+  AWAITING_CUSTOMER: "Awaiting Customer",
+  ESCALATED: "Escalated",
   IGNORED: "Ignored / Out of Scope",
 };
 
@@ -30,6 +32,8 @@ export const STATUS_BADGE: Record<string, string> = {
   CONFIRMED: "badge-resolved",
   RESOLVED: "badge-resolved",
   REJECTED: "badge-ignored",
+  AWAITING_CUSTOMER: "badge-awaiting",
+  ESCALATED: "badge-escalated",
   IGNORED: "badge-ignored",
 };
 

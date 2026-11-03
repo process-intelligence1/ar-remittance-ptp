@@ -230,8 +230,12 @@ one plain sentence before running it, and summarise results in plain language.
   identical otherwise). Button renamed "Confirm & Add to Excel" (CONFIRM_ADD_EXCEL); "Exported cases (n)" placeholder (M09).
   Tests: 53 front-end + 571 back-end.
 - Plan change 29 Oct: action "Confirm & Add to Excel" replaces "Confirm & Update SAP" (see Business decisions; M09).
-- Next: M09 (plan first, wait for "go"): actions + "Confirm & Add to Excel" + "Exported cases (n)" Excel view (ExcelJS) + outbound
-  e-mails - see docs/BUILD_PLAN.md M09 and the Business decisions above. Then M10 lean, M11, M15, M13 lite, M14.
+- M09 BUILT on the laptop (3 Nov 2026), NOT yet committed / deployed - see docs/modules/M09_actions.md: all 7 actions + bulk (all or nothing),
+  row versions (409), statuses CONFIRMED / REJECTED / AWAITING_CUSTOMER / ESCALATED / RESOLVED, Add/Update details with re-score
+  (app/matching/rescore.py), clarification e-mails (app/outbound.py, job SEND_EMAIL, worker sends, redirect only), reply linking,
+  "Exported cases" Excel view + .xlsx (ExcelJS, lazy), Dashboard buckets now by DECISION (not status). Migration d5f2a8b3e006.
+  Tests: 588 back-end + 66 front-end. Still to do before "done": check in a real browser, Gmail send scope + token renewal, deploy.
+- Next: finish M09 checks (above), then M10 lean, M11, M15, M13 lite, M14.
 
 ## Open issues (as of 3 Nov 2026)
 Known weak spots and deferred work - check here before planning a module.
