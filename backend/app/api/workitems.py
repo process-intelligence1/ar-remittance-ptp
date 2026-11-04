@@ -160,8 +160,11 @@ def list_work_items(f: Filters = Depends(filters), sort: str = Query("received_a
     if ids:
         originals = dict(db.execute(select(WorkItem.id, WorkItem.entry_id).where(WorkItem.id.in_(ids))).all())
     rates = get_rates(db)
-    return {"total": total, "page": page, "page_size": page_size,
-            "items": jsonable_encoder([summary(w, e, user, rates, originals.get(w.duplicate_of_id)) for w, e in rows])}
+    # a promise to pay shows its status (Open / Kept / Broken / Escalated ...) right in the queue: there is no separate tracker page
+    promises = dict(db.execute(select(PtpCommitment.work_item_id, PtpCommitment.status)
+                               .where(PtpCommitment.work_item_id.in_([w.id for w, _ in rows]))).all()) if rows else {}
+    items = [{**summary(w, e, user, rates, originals.get(w.duplicate_of_id)), "promise_status": promises.get(w.id)} for w, e in rows]
+    return {"total": total, "page": page, "page_size": page_size, "items": jsonable_encoder(items)}
 
 
 # --------------------------------------------------------------------------- detail
@@ -225,6 +228,7 @@ def work_item_detail(item_id: str, user: CurrentUser = Depends(current_user), db
 
     body = summary(w, e, user, rates, original.entry_id if original else None)
     body.update({
+        "promise_status": ptp[0].status if ptp else None,
         "work_item": columns(w),
         "email": columns(e, exclude=("raw_uri", "body_layout", "gmail_id", "thread_id")),
         "attachments": attachments,

@@ -6,7 +6,7 @@ import { useActions } from "../components/ActionDialogs";
 import type { ActionCode, Attachment, AuditRow, WorkItemDetail } from "../data";
 import { evidenceBoxes } from "../data/evidence";
 import { aiExplanation, confidenceBadge, confidenceRows, fastPathBanner } from "../data/explain";
-import { CLASS_LABELS, STATUS_BADGE, STATUS_LABELS, dateOnly, dateTime, money } from "../data/labels";
+import { CLASS_LABELS, PTP_STATUS_BADGE, PTP_STATUS_LABELS, STATUS_BADGE, STATUS_LABELS, dateOnly, dateTime, money } from "../data/labels";
 
 const IMAGE = /^image\/(png|jpe?g|gif|tiff?)$/;
 const GREEN = "#059669";
@@ -113,6 +113,53 @@ function BsidMatch({ d }: { d: WorkItemDetail }) {
           </div>
         )}
       </div>
+    </Section>
+  );
+}
+
+/** A promise to pay: its status at the business date, the last day it can still be paid, what was received and which alerts went out. */
+interface Promise2Pay {
+  id: number;
+  status: string;
+  instalment_no: number;
+  promise_date: string;
+  broken_on: string | null;
+  amount: number | string | null;
+  currency: string | null;
+  amount_received: number | string | null;
+  payments: { entry_id: string; date: string; applied: string }[] | null;
+  alerted_at: string | null;
+  escalated_at: string | null;
+  check_note: string | null;
+}
+
+function PromiseToPay({ d }: { d: WorkItemDetail }) {
+  const items = d.ptp_commitments as unknown as Promise2Pay[];
+  if (!items?.length) return null;
+  const lastDay = (p: Promise2Pay) => (p.broken_on ? new Date(new Date(p.broken_on).getTime() - 86400000).toISOString().slice(0, 10) : null);
+  return (
+    <Section id="promise" title="🤝 Promise to Pay">
+      {items.map((p) => (
+        <div key={p.id} style={{ marginBottom: 10 }}>
+          <span className={`badge ${PTP_STATUS_BADGE[p.status] ?? ""}`}>{PTP_STATUS_LABELS[p.status] ?? p.status}</span>
+          <div className="detail-grid" style={{ marginTop: 10 }}>
+            {items.length > 1 && <Field label="Instalment">{p.instalment_no}</Field>}
+            <Field label="Promised">{p.amount !== null ? money(Number(p.amount), p.currency) : "—"}</Field>
+            <Field label="Promise date">{dateOnly(p.promise_date)}</Field>
+            <Field label="Last day (grace period)">{dateOnly(lastDay(p))}</Field>
+            <Field label="Received">{p.amount_received !== null ? money(Number(p.amount_received), p.currency) : "—"}</Field>
+            <Field label="Alerts">
+              {p.alerted_at || p.escalated_at
+                ? [p.alerted_at && `Collections alerted ${dateTime(p.alerted_at)}`, p.escalated_at && `AR Supervisor alerted ${dateTime(p.escalated_at)}`].filter(Boolean).join(" · ")
+                : "none sent"}
+            </Field>
+          </div>
+          {(p.payments ?? []).map((x) => (
+            <div key={x.entry_id} className="text-xs" style={{ marginTop: 4 }}>Payment <span className="font-mono">{x.entry_id}</span> · {dateOnly(x.date)} · {x.applied} applied</div>
+          ))}
+          {p.check_note && <div className="text-xs text-muted" style={{ marginTop: 4 }}>{p.check_note}</div>}
+        </div>
+      ))}
     </Section>
   );
 }
@@ -259,6 +306,7 @@ export default function RecordDetail({ id, onClose }: { id: string; onClose: () 
 
               <BsidMatch d={d} />
               <ConfidenceScoring d={d} />
+              <PromiseToPay d={d} />
 
               {d.same_email_items.length > 0 && (
                 <Section id="same_email" title="📨 Other rows from the same e-mail">

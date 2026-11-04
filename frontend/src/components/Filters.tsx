@@ -34,11 +34,12 @@ export default function FilterBar({
           Reset Filters
         </button>
       </div>
-      <div className="filters-row">
+      {/* ONE row, in the order of the original Action Queue page (--cols = how many filters this screen has) */}
+      <div className="filters-row queue-filters-one-line" style={{ ["--cols" as string]: extra === "queue" ? 10 : 7 }}>
         {extra === "queue" && (
           <div className="filter-group">
             <label htmlFor="f-q">Search</label>
-            <input id="f-q" type="text" placeholder="Entry ID, invoice, customer…" value={value.q ?? ""} onChange={(e) => set({ q: e.target.value })} />
+            <input id="f-q" type="text" placeholder="Entry ID, invoice…" value={value.q ?? ""} onChange={(e) => set({ q: e.target.value })} />
           </div>
         )}
         <div className="filter-group">
@@ -49,6 +50,56 @@ export default function FilterBar({
           <label htmlFor="f-to">To Date</label>
           <input id="f-to" type="date" value={value.to_date ?? ""} onChange={(e) => set({ to_date: e.target.value })} />
         </div>
+        <div className="filter-group">
+          <label htmlFor="f-cls">Classification</label>
+          <select id="f-cls" value={value.classification ?? ""} onChange={(e) => set({ classification: e.target.value })}>
+            <option value="">All</option>
+            {SHOWN_CLASSES.map((c) => (
+              <option key={c} value={c}>
+                {CLASS_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </div>
+        {extra === "queue" && (
+          <div className="filter-group">
+            <label htmlFor="f-bsid">BSID Match</label>
+            <select id="f-bsid" value={value.bsid_match ?? ""} onChange={(e) => set({ bsid_match: e.target.value as Filters["bsid_match"] })}>
+              <option value="">All</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        )}
+        <div className="filter-group">
+          <label htmlFor="f-status">Status</label>
+          <select id="f-status" value={value.status ?? ""} onChange={(e) => set({ status: e.target.value })}>
+            <option value="">All Statuses</option>
+            {Object.entries(STATUS_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </div>
+        {extra === "queue" && (
+          <div className="filter-group">
+            <label htmlFor="f-conf">Confidence</label>
+            <select
+              id="f-conf"
+              value={`${value.min_confidence ?? ""}-${value.max_confidence ?? ""}`}
+              onChange={(e) => {
+                const [min, max] = e.target.value.split("-");
+                set({ min_confidence: min === "" ? undefined : Number(min), max_confidence: max === "" ? undefined : Number(max) });
+              }}
+            >
+              <option value="-">All</option>
+              <option value="80-">High (≥ 80%)</option>
+              <option value="40-79.99">Medium (40–79%)</option>
+              <option value="-39.99">Low (&lt; 40%)</option>
+            </select>
+          </div>
+        )}
         <div className="filter-group">
           <label htmlFor="f-customer">Customer</label>
           <input id="f-customer" type="text" placeholder="Name or number" value={value.customer ?? ""} onChange={(e) => set({ customer: e.target.value })} />
@@ -71,56 +122,6 @@ export default function FilterBar({
             ))}
           </select>
         </div>
-        <div className="filter-group">
-          <label htmlFor="f-status">Status</label>
-          <select id="f-status" value={value.status ?? ""} onChange={(e) => set({ status: e.target.value })}>
-            <option value="">All Statuses</option>
-            {Object.entries(STATUS_LABELS).filter(([k]) => !(extra === "queue" && k === "IGNORED")).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label htmlFor="f-cls">Classification</label>
-          <select id="f-cls" value={value.classification ?? ""} onChange={(e) => set({ classification: e.target.value })}>
-            <option value="">All</option>
-            {SHOWN_CLASSES.filter((c) => !(extra === "queue" && c === "OUT_OF_SCOPE")).map((c) => (  /* out-of-scope e-mails are not in the queue */
-              <option key={c} value={c}>
-                {CLASS_LABELS[c]}
-              </option>
-            ))}
-          </select>
-        </div>
-        {extra === "queue" && (
-          <>
-            <div className="filter-group">
-              <label htmlFor="f-bsid">BSID Match</label>
-              <select id="f-bsid" value={value.bsid_match ?? ""} onChange={(e) => set({ bsid_match: e.target.value as Filters["bsid_match"] })}>
-                <option value="">All</option>
-                <option value="true">Yes</option>
-                <option value="false">No</option>
-              </select>
-            </div>
-            <div className="filter-group">
-              <label htmlFor="f-conf">Confidence</label>
-              <select
-                id="f-conf"
-                value={`${value.min_confidence ?? ""}-${value.max_confidence ?? ""}`}
-                onChange={(e) => {
-                  const [min, max] = e.target.value.split("-");
-                  set({ min_confidence: min === "" ? undefined : Number(min), max_confidence: max === "" ? undefined : Number(max) });
-                }}
-              >
-                <option value="-">All</option>
-                <option value="80-">High (≥ 80%)</option>
-                <option value="40-79.99">Medium (40–79%)</option>
-                <option value="-39.99">Low (&lt; 40%)</option>
-              </select>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

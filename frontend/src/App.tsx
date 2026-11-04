@@ -12,7 +12,6 @@ import Dashboard from "./pages/Dashboard";
 import DemoControl from "./pages/DemoControl";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import Login from "./pages/Login";
-import PtpTracker from "./pages/PtpTracker";
 import Queue from "./pages/Queue";
 
 function Layout() {
@@ -29,7 +28,7 @@ function Layout() {
   };
   const total = useQuery({
     queryKey: ["workItems", "count"],
-    queryFn: () => ds.workItems({ page_size: 1, in_scope: true }),
+    queryFn: () => ds.workItems({ page_size: 1 }),
     enabled: !!session,
   });
   // signed out: go to the login screen and come back to this exact address afterwards (shared links, F5)
@@ -51,9 +50,6 @@ function Layout() {
           <NavLink to="/queue" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
             <span className="nav-icon">⚡</span> Action Queue
             <span className="acc-count">{total.data?.total ?? "—"}</span>
-          </NavLink>
-          <NavLink to="/ptp" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
-            <span className="nav-icon">🤝</span> PTP Tracker
           </NavLink>
           <NavLink to="/audit" className={({ isActive }) => `nav-btn${isActive ? " active" : ""}`}>
             <span className="nav-icon">📋</span> Audit Trail
@@ -103,7 +99,7 @@ export default function App({ dataSource }: { dataSource?: DataSource }) {
               <Route element={<Layout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="queue" element={<Queue />} />
-                <Route path="ptp" element={<PtpTracker />} />
+                <Route path="ptp" element={<Navigate to="/queue" replace />} />
                 <Route path="audit" element={<Audit />} />
                 <Route path="kb" element={<KnowledgeBase />} />
                 <Route path="demo" element={ds.kind === "live" ? <DemoControl /> : <Navigate to="/" replace />} />

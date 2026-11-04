@@ -234,11 +234,11 @@ one plain sentence before running it, and summarise results in plain language.
   row versions (409), statuses CONFIRMED / REJECTED / AWAITING_CUSTOMER / ESCALATED / RESOLVED, Add/Update details with re-score
   (app/matching/rescore.py), clarification e-mails (app/outbound.py, job SEND_EMAIL, worker sends, redirect only), reply linking,
   "Exported cases" Excel view + .xlsx (ExcelJS, lazy), Dashboard buckets now by DECISION (not status). Migration d5f2a8b3e006.
-  Tests: 588 back-end + 66 front-end (later 589 / 67 with the Action Queue out-of-scope filter). Action Queue leaves out-of-scope e-mails out.
+  Tests: 588 back-end + 66 front-end (later 589 / 67 with the Action Queue out-of-scope filter). (Out-of-scope e-mails were left out of the queue on 3 Nov; on 4 Nov the owner put ALL record types back: remittance, promise to pay, duplicate, exception, out of scope.)
 - M10 BUILT on the laptop (3 Nov 2026), committed locally, NOT pushed / deployed - see docs/modules/M10_ptp.md: app/ptp.py checks every promise at
   the business date (KEPT / PARTIALLY_KEPT / BROKEN / ESCALATED; paid = remittance row for the same invoice or open item except REJECTED /
   DUPLICATE; 2 % tolerance; TCURR conversion at the payment date; instalments in promise-date order), alert + escalation e-mails once each
-  (redirect only), PTP Tracker screen, GET /api/ptp, POST /api/ptp/run (M11 calls it after moving the date). Migration e7a4b9c1f007.
+  (redirect only), Promise Status column in the Action Queue + "Promise to Pay" section in the record (the separate PTP Tracker page was removed 4 Nov), GET /api/ptp, POST /api/ptp/run (M11 calls it after moving the date). Migration e7a4b9c1f007.
   Tests: 606 back-end + 71 front-end. The local DB now also holds sample P03R-0194 (ENT-000874) and PTP audit entries from the browser check.
 - M11 DONE except the owner's look at the live Demo Control page (3 Nov 2026; code deployed ce09dca; history BUILT IN AZURE by the one-off job ar-history: 187 e-mails in 254 s, 440 actions, reset point taken = 505 work items / 234 e-mails, business date 2026-10-28) - see docs/modules/M11_demo_control.md: live set = 47 samples
   (data/samples/live_set.txt, one per scenario code, P03+P03R and P05+P05R together), history = the other 187 (scripts.build_history: e-mails over the

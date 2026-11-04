@@ -15,7 +15,7 @@ Customer e-mail (Gmail inbox)           Worker (every 10 min, or "Process now")
    PostgreSQL ── SAP simulated (BSID, KNA1 ...)  read-only      Workbench (React web app)
               ── work items, audit trail, jobs                   Dashboard · Action Queue · Record Detail
                                                     ◄──────────  Confirm & Add to Excel · Reject · Clarify · Escalate
-   Promise-to-pay check (business date) ───────────►            PTP Tracker · alert / escalation e-mails
+   Promise-to-pay check (business date) ───────────►            Promise status in the queue · alert / escalation e-mails
 ```
 
 Key points

@@ -68,12 +68,19 @@ export default function DemoControl() {
   return (
     <div className="page active" id="page-demo">
       <div className="page-content">
-        <div className="page-header">
-          <h1>🎛️ Demo Control</h1>
-          <p>
-            Business date: <strong data-testid="demo-date">{d ? dateOnly(d.business_date) : "…"}</strong> ·{" "}
-            {d?.reset_point ? <>reset point from {dateTime(d.reset_point.taken_at)} ({d.reset_point.counts["ar.work_item"] ?? "?"} work items)</> : "no reset point yet"}
-          </p>
+        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h1>🎛️ Demo Control</h1>
+            <p>
+              Business date: <strong data-testid="demo-date">{d ? dateOnly(d.business_date) : "…"}</strong> ·{" "}
+              {d?.reset_point ? <>reset point from {dateTime(d.reset_point.taken_at)} ({d.reset_point.counts["ar.work_item"] ?? "?"} work items)</> : "no reset point yet"}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="filter-btn btn-reset" disabled={!!busy} onClick={() => run("process", async () => { const w = await ds.demoProcessNow(); return w.started ? "Worker started." : `Worker not started: ${w.reason ?? "unknown"}`; })}>⚙ Process now</button>
+            <button type="button" className="dlg-btn danger" disabled={!!busy || !d?.reset_point} onClick={() => setConfirmReset(true)} data-testid="demo-reset"
+              title="Brings everything back to the saved starting point: statuses, exported cases, promises, samples sent and the business date">♻ Reset demo…</button>
+          </div>
         </div>
         {error && <div className="dlg-error" role="alert">{error}</div>}
 
@@ -101,7 +108,6 @@ export default function DemoControl() {
             <label style={{ fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}>
               <input type="checkbox" checked={processNow} onChange={(e) => setProcessNow(e.target.checked)} /> Start processing right away
             </label>
-            <button type="button" className="filter-btn btn-reset" disabled={!!busy} onClick={() => run("process", async () => { const w = await ds.demoProcessNow(); return w.started ? "Worker started." : `Worker not started: ${w.reason ?? "unknown"}`; })}>⚙ Process now</button>
           </div>
           {d?.live_set_error && <div className="dlg-error">{d.live_set_error}</div>}
           <div className="table-wrap" style={{ maxHeight: 420, overflow: "auto" }}>
@@ -130,13 +136,6 @@ export default function DemoControl() {
           </div>
         </Card>
 
-        <Card title="♻ Reset demo" danger>
-          <p className="text-xs text-muted" style={{ marginTop: 0 }}>
-            Brings everything back to the saved starting point ({d?.reset_point ? dateTime(d.reset_point.taken_at) : "not taken yet"}): record statuses and comments, the exported cases,
-            promise statuses and alerts, the samples already sent, and the business date.
-          </p>
-          <button type="button" className="dlg-btn danger" disabled={!!busy || !d?.reset_point} onClick={() => setConfirmReset(true)} data-testid="demo-reset">Reset demo…</button>
-        </Card>
       </div>
 
       {confirmReset && (

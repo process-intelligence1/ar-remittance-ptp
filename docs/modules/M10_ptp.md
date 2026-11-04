@@ -22,15 +22,15 @@ A REMITTANCE row for the same invoice or open item (same BSID item, or same norm
 - **No amount in the payment e-mail:** taken as paid in full, with a note.
 
 ## Alerts
-Through the normal outbound mechanism (`app/outbound.py`): always only to `OUTBOUND_REDIRECT_TO`, subject `[AR-DEMO][ALERT → Collections] ...` / `[AR-DEMO][ESCALATION → AR Supervisor] ...`, the intended recipient (the Collections / Supervisor demo user) named in the subject and body. **Once per promise and event** (`alerted_at`, `escalated_at`); they stay set when the date is moved back, so nothing is sent twice. A promise that jumps straight past the escalation date sends both mails once. In the app: status badges, the Alerts column and the status filter of the PTP Tracker, and one audit entry per status change (`entity_type ptp`, actions `PTP_BROKEN`, `PTP_ESCALATED`, `PTP_KEPT`, ...).
+Through the normal outbound mechanism (`app/outbound.py`): always only to `OUTBOUND_REDIRECT_TO`, subject `[AR-DEMO][ALERT → Collections] ...` / `[AR-DEMO][ESCALATION → AR Supervisor] ...`, the intended recipient (the Collections / Supervisor demo user) named in the subject and body. **Once per promise and event** (`alerted_at`, `escalated_at`); they stay set when the date is moved back, so nothing is sent twice. A promise that jumps straight past the escalation date sends both mails once. In the app: the Promise Status badge in the Action Queue, the "Promise to Pay" section of the record (status, last day, payments, alerts sent), and one audit entry per status change (`entity_type ptp`, actions `PTP_BROKEN`, `PTP_ESCALATED`, `PTP_KEPT`, ...).
 
 ## Where it runs
 - The worker: every round (`app.worker`), then the alerts it queued are sent in the same round.
-- `POST /api/ptp/run` (signed-in user): same check, safe to repeat; the M11 "move the date forward" demo calls it after changing the business date. The "Re-check now" button of the PTP Tracker uses it.
+- `POST /api/ptp/run` (signed-in user): same check, safe to repeat; the M11 "move the date forward" demo calls it after changing the business date. There is no separate tracker page (removed 4 Nov 2026): the promise status is a column of the Action Queue (filter Classification = Promise to Pay) and the "Promise to Pay" section of the record.
 - `GET /api/ptp`: list with status counts, deadline, days overdue, payments found, alert flags.
 
 ## Code
-Back end: `app/ptp.py`, `app/api/ptp.py`, worker step `ptp_checks`, migration `e7a4b9c1f007` (payments, broken_on, alerted_at, escalated_at, check_note, last_checked_on), `outbound.queue_message(intended=...)` (internal alerts never join a customer's e-mail thread). Front end: `pages/PtpTracker.tsx`, data layer `ptpList / runPtpChecks` (snapshot stubs for M15).
+Back end: `app/ptp.py`, `app/api/ptp.py`, worker step `ptp_checks`, migration `e7a4b9c1f007` (payments, broken_on, alerted_at, escalated_at, check_note, last_checked_on), `outbound.queue_message(intended=...)` (internal alerts never join a customer's e-mail thread). Front end: column "Promise Status" in `pages/Queue.tsx` and section "Promise to Pay" in `pages/RecordDetail.tsx` (the list API and the record carry `promise_status`).
 
 ## Tests (3 Nov 2026)
 Back end 606 pass (17 new in `tests/test_ptp.py`); front end 71 pass (4 new in `src/test/ptp.test.tsx`).

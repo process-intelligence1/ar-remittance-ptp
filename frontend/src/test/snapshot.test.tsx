@@ -1,7 +1,7 @@
 /* M15: the demo edition's data source, rules, KPIs and screens. */
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ActionError, type PtpList } from "../data";
+import { ActionError } from "../data";
 import { allowedActions } from "../data/permissions";
 import { SnapshotDataSource } from "../data/snapshot";
 import { computeKpis } from "../data/snapshot/kpis";
@@ -80,7 +80,7 @@ const ROWS = [
 function stubFetch(rows: SnapRow[] = ROWS) {
   const files: Record<string, unknown> = {
     "data/work_items.json": rows, "data/audit.json": [{ id: 1, occurred_at: "2026-10-12T10:00:00+00:00", business_date: "2026-10-12", actor: "system", actor_role: null, entity_type: "work_item", entity_id: "ENT-000001", action: "WORK_ITEMS_CREATED", details: null }],
-    "data/ptp.json": { business_date: "2026-10-28", grace_days: 3, total: 0, page: 1, page_size: 100, counts: { OPEN: 0, PARTIALLY_KEPT: 0, KEPT: 0, BROKEN: 0, ESCALATED: 0, CANCELLED: 0 }, items: [] },
+    "data/ptp.json": { business_date: "2026-10-28", grace_days: 3, total: 0, page: 1, page_size: 100, counts: { OPEN: 0, PARTIALLY_KEPT: 0, KEPT: 0, BROKEN: 0, ESCALATED: 0, CANCELLED: 0 }, items: [{ id: 1, work_item_id: 6, entry_id: "ENT-000006", status: "BROKEN" }] },
     "data/meta.json": { business_date: "2026-10-28", generated_at: "2026-11-03T10:00:00Z" },
   };
   for (const r of rows) {
@@ -223,10 +223,14 @@ describe("demo edition data source", () => {
   it("has no server-only features: Demo Control, the promise check and BSID picking say so", async () => {
     const d = await ds();
     await expect(d.demoState()).rejects.toThrow(/live edition/);
-    await expect(d.runPtpChecks()).rejects.toThrow(/live edition/);
     await expect(d.bsidChoices(1)).rejects.toThrow(/live edition/);
-    const p: PtpList = await d.ptpList({});
-    expect(p.counts.OPEN).toBe(0);
+  });
+
+  it("shows the status of a promise on its row and in its record (from the exported promises)", async () => {
+    const d = await ds();
+    expect((await d.workItems({})).items.find((r) => r.id === 6)!.promise_status).toBe("BROKEN");
+    expect((await d.workItems({})).items.find((r) => r.id === 1)!.promise_status).toBeNull();
+    expect((await d.workItem(6)).promise_status).toBe("BROKEN");
   });
 });
 

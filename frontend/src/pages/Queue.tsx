@@ -6,7 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { BULK_ACTIONS, useActions } from "../components/ActionDialogs";
 import FilterBar from "../components/Filters";
 import type { ActionCode, Filters, WorkItemRow } from "../data";
-import { ACTION_LABELS, CLASS_LABELS, STATUS_BADGE, STATUS_LABELS, dateOnly, dateTime, money } from "../data/labels";
+import { ACTION_LABELS, CLASS_LABELS, PTP_STATUS_BADGE, PTP_STATUS_LABELS, STATUS_BADGE, STATUS_LABELS, dateOnly, dateTime, money } from "../data/labels";
 import ExportedCases from "../components/ExportedCases";
 import RecordDetail from "./RecordDetail";
 
@@ -32,6 +32,14 @@ const COLUMNS: ColumnDef<WorkItemRow>[] = [
   { id: "classification", header: "Classification", cell: (c) => CLASS_LABELS[c.row.original.classification] ?? c.row.original.classification },
   { id: "invoice_ref", header: "Invoice No.", cell: (c) => <span className="font-mono">{c.row.original.invoice_ref ?? "—"}</span> },
   { id: "promise_date", header: "Promise Date", cell: (c) => (c.row.original.promise_date ? dateOnly(c.row.original.promise_date) : "—") },
+  {
+    id: "promise_status",
+    header: "Promise Status",
+    cell: (c) => {
+      const s = c.row.original.promise_status;
+      return s ? <span className={`badge ${PTP_STATUS_BADGE[s] ?? ""}`} title="Promise to pay: checked at the business date">{PTP_STATUS_LABELS[s] ?? s}</span> : "—";
+    },
+  },
   { id: "bsid_match", header: "BSID Match", cell: (c) => <span className={`badge ${c.row.original.bsid_match ? "badge-bsid-yes" : "badge-bsid-no"}`}>{c.row.original.bsid_match ? "Yes" : "No"}</span> },
   { id: "amount", header: "Amount", cell: (c) => money(c.row.original.amount, c.row.original.currency) },
   {
@@ -79,7 +87,7 @@ export default function Queue() {
   useEffect(() => setPage(1), [filters, pageSize]);
   const query = useQuery({
     queryKey: ["workItems", filters, page, pageSize, sort],
-    queryFn: () => ds.workItems({ ...filters, in_scope: true, page, page_size: pageSize, sort: SORTABLE[sort.id] ?? "received_at", order: sort.desc ? "desc" : "asc" }),
+    queryFn: () => ds.workItems({ ...filters, page, page_size: pageSize, sort: SORTABLE[sort.id] ?? "received_at", order: sort.desc ? "desc" : "asc" }),
     placeholderData: keepPreviousData,
   });
   const rows = query.data?.items ?? [];

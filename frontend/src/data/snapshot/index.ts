@@ -22,7 +22,6 @@ import {
   type ListParams,
   type Page,
   type PtpList,
-  type PtpRunResult,
   type Session,
   type WorkerStart,
   type WorkItemDetail,
@@ -94,8 +93,12 @@ export class SnapshotDataSource implements DataSource {
   }
   private toRow = (r: SnapRow): WorkItemRow => {
     const { export: _export, exported_by: _by, ...row } = r;
-    return { ...row, allowed_actions: actionsFor(this.user, r) } as WorkItemRow;
+    return { ...row, promise_status: this.promiseOf(r.entry_id), allowed_actions: actionsFor(this.user, r) } as WorkItemRow;
   };
+  /** the status of the promise behind a row (from the exported promises; null for rows that are no promise) */
+  private promiseOf(entryId: string) {
+    return this.data?.ptp.items.find((p) => p.entry_id === entryId)?.status ?? null;
+  }
   private find(d: Loaded, id: number | string): SnapRow {
     const r = d.rows.find((x) => (typeof id === "number" || /^\d+$/.test(String(id)) ? x.id === Number(id) : x.entry_id === String(id).toUpperCase()));
     if (!r) throw new Error(`Work item ${id} not found`);
@@ -143,7 +146,7 @@ export class SnapshotDataSource implements DataSource {
     const mine = this.extraAudit.filter((a) => a.entity_id === r.entry_id).sort((a, b) => a.id - b.id);
     const { export: _e, exported_by: _b, ...fields } = r;
     return {
-      ...base, ...fields, allowed_actions: actionsFor(this.user, r), work_item: { ...base.work_item, status: r.status },
+      ...base, ...fields, promise_status: this.promiseOf(r.entry_id), allowed_actions: actionsFor(this.user, r), work_item: { ...base.work_item, status: r.status },
       attachments: base.attachments.map((a) => {
         const x = a as typeof a & { file?: string; file_kind?: string; pages_url?: string | null };
         return { ...a, url: x.file_kind === "sample" ? `samples/${x.file}` : (x.file ?? a.url), page_url: x.pages_url ?? undefined };
@@ -217,20 +220,6 @@ export class SnapshotDataSource implements DataSource {
       n += 1;
     }
     return n;
-  }
-
-  // ---- PTP Tracker (as exported; the daily check needs the server)
-  async ptpList(p: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList> {
-    const d = await this.load();
-    const q = p.q?.toLowerCase(), cust = p.customer?.toLowerCase();
-    const items = d.ptp.items.filter((x) => (!p.status || x.status === p.status.toUpperCase())
-      && (!q || [x.entry_id, x.invoice_ref, x.customer_name].some((v) => (v ?? "").toLowerCase().includes(q)))
-      && (!cust || (x.customer_name ?? "").toLowerCase().includes(cust) || x.kunnr === p.customer));
-    const page = pageOf(items, p.page ?? 1, p.page_size ?? 100);
-    return { ...d.ptp, ...page, counts: d.ptp.counts };
-  }
-  async runPtpChecks(): Promise<PtpRunResult> {
-    throw notHere("The promise check");
   }
 
   // ---- Demo Control belongs to the live edition

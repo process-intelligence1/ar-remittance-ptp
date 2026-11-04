@@ -57,6 +57,24 @@ export function performanceLabels(totals: number[]): Plugin<"bar"> {
   };
 }
 
+/** Slimmer bars for the Distribution chart (half of the space between two categories stays free; never wider than 44 px). */
+const SLIM = { barPercentage: 0.55, categoryPercentage: 0.8, maxBarThickness: 44 } as const;
+
+/** The key of the Distribution chart. It is HTML (not Chart.js' own legend) so it stays visible while the wide chart scrolls sideways. */
+export function DistributionLegend() {
+  const items = [["Auto Processed", COLORS.auto], ["Manual Processing", COLORS.manual], ["Duplicates", COLORS.duplicates], ["Exceptions", COLORS.exceptions]] as const;
+  return (
+    <div className="chart-legend" data-testid="distribution-legend" style={{ display: "flex", gap: 16, flexWrap: "wrap", margin: "2px 0 8px 2px", fontSize: 12, color: "var(--c-text2)" }}>
+      {items.map(([label, colour]) => (
+        <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: colour, display: "inline-block" }} />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /** Writes the count into every segment of the vertical stacked bars of the Distribution chart. */
 export const stackLabels: Plugin<"bar"> = {
   id: "stackLabels",
@@ -172,25 +190,26 @@ export default function Dashboard() {
                 ))}
               </select>
             </div>
+            {charts && <DistributionLegend />}
             <div className="chart-wrap dimension-scroll-wrap" style={{ height: 320, overflowX: "auto", overflowY: "hidden" }} data-testid="chart-dimension">
               {data && !charts && <div className="empty-state" data-testid="chart-unavailable">Chart data unavailable</div>}
               {charts && (
-                <div style={{ height: 300, width: `max(100%, ${Math.max(500, dimPoints.length * 190)}px)` }}>
+                <div style={{ height: 300, width: `max(100%, ${Math.max(500, dimPoints.length * 120)}px)` }}>
                   <Bar
                     plugins={[stackLabels]}
                     data={{
                       labels: dimPoints.map((d) => d.label),
                       datasets: [
-                        { label: "Auto Processed", data: dimPoints.map((d) => d.auto), backgroundColor: COLORS.auto, borderRadius: 3 },
-                        { label: "Manual Processing", data: dimPoints.map((d) => d.manual), backgroundColor: COLORS.manual, borderRadius: 3 },
-                        { label: "Duplicates", data: dimPoints.map((d) => d.duplicates), backgroundColor: COLORS.duplicates, borderRadius: 3 },
-                        { label: "Exceptions", data: dimPoints.map((d) => d.exceptions), backgroundColor: COLORS.exceptions, borderRadius: 3 },
+                        { label: "Auto Processed", data: dimPoints.map((d) => d.auto), backgroundColor: COLORS.auto, borderRadius: 3, ...SLIM },
+                        { label: "Manual Processing", data: dimPoints.map((d) => d.manual), backgroundColor: COLORS.manual, borderRadius: 3, ...SLIM },
+                        { label: "Duplicates", data: dimPoints.map((d) => d.duplicates), backgroundColor: COLORS.duplicates, borderRadius: 3, ...SLIM },
+                        { label: "Exceptions", data: dimPoints.map((d) => d.exceptions), backgroundColor: COLORS.exceptions, borderRadius: 3, ...SLIM },
                       ],
                     }}
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
-                      plugins: { legend: { position: "bottom", labels: { font: { size: 9 }, padding: 7 } } },
+                      plugins: { legend: { display: false } }, // the legend above the chart stays in view while the chart scrolls sideways
                       scales: {
                         x: { stacked: true, title: { display: true, text: DIMENSIONS.find((d) => d.key === dimension)!.label, font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 }, maxRotation: 35, minRotation: 0 } },
                         y: { stacked: true, beginAtZero: true, title: { display: true, text: "Email Count", font: { size: 10, weight: "bold" } }, ticks: { font: { size: 9 } } },

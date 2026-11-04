@@ -110,16 +110,29 @@ describe("actions in the Action Queue", () => {
   });
 });
 
-describe("out-of-scope e-mails are not in the Action Queue", () => {
-  it("asks the data layer for in-scope rows only, and offers no Out of Scope classification or status filter", async () => {
+describe("the Action Queue holds every kind of record", () => {
+  it("asks for all records (remittance, promise to pay, duplicate, exception, out of scope) and offers each as a classification", async () => {
     signedIn();
     const workItems = vi.fn(fakeDs().workItems);
     renderApp(fakeDs({ workItems }), "#/queue");
     await screen.findByText("ENT-000001");
-    expect(workItems.mock.calls.some(([p]) => p.page_size === 25 && p.in_scope === true)).toBe(true);
-    expect(workItems.mock.calls.filter(([p]) => p.in_scope !== true && p.status !== "CONFIRMED")).toEqual([]);
-    expect(within(screen.getByLabelText("Classification")).queryByRole("option", { name: "Out of Scope" })).not.toBeInTheDocument();
-    expect(within(screen.getByLabelText("Status")).queryByRole("option", { name: /Ignored/ })).not.toBeInTheDocument();
+    expect(workItems.mock.calls.every(([p]) => !p.in_scope)).toBe(true);
+    const cls = within(screen.getByLabelText("Classification")).getAllByRole("option").map((o) => o.textContent);
+    expect(cls).toEqual(["All", "Remittance", "Promise to Pay", "Duplicate", "Exception", "Out of Scope"]);
+    expect(within(screen.getByLabelText("Status")).getByRole("option", { name: /Ignored/ })).toBeInTheDocument();
+  });
+
+  it("shows all filters in ONE row, in the order of the original page, and the promise status of a promise row", async () => {
+    signedIn();
+    renderApp(fakeDs({ rows: [row({ classification: "PTP", promise_date: "2026-11-27", promise_status: "BROKEN", decision: "AUTO_PROCESS" })] }), "#/queue");
+    await screen.findByText("ENT-000001");
+    const bar = document.querySelector(".filters-row")!;
+    expect(bar).toHaveClass("queue-filters-one-line");
+    expect([...bar.querySelectorAll("label")].map((l) => l.textContent)).toEqual(
+      ["Search", "From Date", "To Date", "Classification", "BSID Match", "Status", "Confidence", "Customer", "Region", "Company Code"]);
+    expect(screen.getByRole("columnheader", { name: "Promise Status" })).toBeInTheDocument();
+    expect(await screen.findByText("Broken")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /PTP Tracker/ })).not.toBeInTheDocument();
   });
 });
 

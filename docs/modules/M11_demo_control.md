@@ -4,7 +4,7 @@ Status: built, tested, deployed (ce09dca) and the history built in Azure on 3 No
 
 ## What a presenter gets
 Page **Demo Control** (any signed-in demo user):
-- **Business date:** +1 / +3 / +7 / +30 days, an exact date, or back to the default. Moving it runs the promise check at once (PTP Tracker, alert and escalation e-mails to the demo mailbox) and starts the worker so the e-mails go out.
+- **Business date:** +1 / +3 / +7 / +30 days, an exact date, or back to the default. Moving it runs the promise check at once (the Promise Status column of the Action Queue, alert and escalation e-mails to the demo mailbox) and starts the worker so the e-mails go out.
 - **Send a sample e-mail:** the 47 live-set samples (first sample of every scenario code; P03 + P03R and P05 + P05R kept together). The sample goes into the Gmail inbox with the customer as sender (`POST /api/demo/send-sample`), optionally with "Start processing right away". The page remembers what was sent.
 - **Process now:** starts the worker job.
 - **Reset demo** (with a confirmation dialog): back to the saved starting point.

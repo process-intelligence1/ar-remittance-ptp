@@ -98,6 +98,8 @@ export interface WorkItemRow {
   exported_at?: string | null;
   /** true once the record is closed by a person (the Knowledge Base then offers no further action) */
   resolved?: boolean;
+  /** promise to pay rows: Open / Partially kept / Kept / Broken / Escalated / Cancelled (null for every other row) */
+  promise_status?: PtpStatus | null;
   allowed_actions: ActionCode[];
 }
 
@@ -354,7 +356,7 @@ export class ActionError extends Error {
 
 export type PtpStatus = "OPEN" | "PARTIALLY_KEPT" | "KEPT" | "BROKEN" | "ESCALATED" | "CANCELLED";
 
-/** One promise to pay (an invoice, or one instalment of a payment plan) in the PTP Tracker. */
+/** One promise to pay (an invoice, or one instalment of a payment plan) (exported in the demo data; shown as the row's promise status). */
 export interface PtpItem {
   id: number;
   work_item_id: number;
@@ -389,15 +391,6 @@ export interface PtpList {
   page_size: number;
   counts: Record<PtpStatus, number>;
   items: PtpItem[];
-}
-
-export interface PtpRunResult {
-  business_date: string;
-  checked: number;
-  changed: string[];
-  alerts: number;
-  escalations: number;
-  counts: Record<string, number>;
 }
 
 /** One live-set sample in Demo Control (an e-mail the presenter can send into the inbox). */
@@ -480,10 +473,6 @@ export interface DataSource {
   exportedCases(): Promise<ExportedCases>;
   /** records exported_at / exported_by for the downloaded cases */
   markExported(entryIds?: string[]): Promise<number>;
-  /** PTP Tracker (M10) */
-  ptpList(params: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList>;
-  /** check every promise now at the business date (same as the worker) */
-  runPtpChecks(): Promise<PtpRunResult>;
   /** Demo edition only (M15): put the data back to what was loaded; the live edition has no such method (it has Reset demo in Demo Control) */
   resetSnapshot?(): void;
   /** Demo Control (M11) */

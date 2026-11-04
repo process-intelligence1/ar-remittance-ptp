@@ -261,3 +261,17 @@ def test_the_worker_runs_the_check_and_reports_it(db):
     s = worker.RoundSummary()
     worker.ptp_checks(db, s)
     assert s.ptp_changed >= 1 and s.ptp_alerts >= 1 and "promises changed" in s.line()
+
+
+def test_the_queue_and_the_record_show_the_promise_status(client, db):
+    c, w = promise(db)
+    plain = make_item(db, make_email(db))
+    h = headers(client)
+    set_date(db, "2026-11-14")
+    ptp.evaluate(db)
+    items = {i["entry_id"]: i for i in client.get(f"/api/work-items?q={w.entry_id[:8]}&page_size=200", headers=h).json()["items"]}
+    one = client.get(f"/api/work-items?q={w.entry_id}", headers=h).json()["items"][0]
+    assert one["promise_status"] == "BROKEN" and one["entry_id"] == w.entry_id
+    assert client.get(f"/api/work-items?q={plain.entry_id}", headers=h).json()["items"][0]["promise_status"] is None
+    d = client.get(f"/api/work-items/{w.entry_id}", headers=h).json()
+    assert d["promise_status"] == "BROKEN" and d["ptp_commitments"][0]["status"] == "BROKEN"

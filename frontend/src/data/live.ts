@@ -10,8 +10,6 @@ import {
   type DemoResetResult,
   type DemoSendResult,
   type DemoState,
-  type PtpList,
-  type PtpRunResult,
   type ExportedCases,
   type AttachmentLayout,
   type AuditRow,
@@ -152,10 +150,6 @@ export class LiveDataSource implements DataSource {
     return this.request("/api/exports/cases");
   }
 
-  ptpList(params: { status?: string; q?: string; customer?: string; page?: number; page_size?: number }): Promise<PtpList> {
-    return this.request(`/api/ptp${toQuery({ ...params })}`);
-  }
-
   demoState(): Promise<DemoState> {
     return this.request("/api/demo/state");
   }
@@ -174,10 +168,6 @@ export class LiveDataSource implements DataSource {
 
   demoReset(): Promise<DemoResetResult> {
     return this.request("/api/demo/reset", { method: "POST", body: JSON.stringify({ confirm: true }) });
-  }
-
-  runPtpChecks(): Promise<PtpRunResult> {
-    return this.request("/api/ptp/run", { method: "POST", body: JSON.stringify({}) });
   }
 
   async markExported(entryIds?: string[]): Promise<number> {
