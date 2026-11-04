@@ -257,7 +257,16 @@ one plain sentence before running it, and summarise results in plain language.
   the live edition under /live/ (page images + sample files are put in at build time from data/samples). Export no longer needs Azure (deadline gone).
   Open: publish + test in a private window on another computer; Azure history still has 3 Nov pipeline timestamps (`build_history --restamp` + new reset point).
   Tests: 631 back-end + 92 front-end.
-- Next: push M15 and test the published site; then M13 lite, M14.
+- M15 PUBLISHED 3 Nov 2026 (7bd8f5a; Pages build 65 MB); the owner tests the public link in a private window on another computer (open check).
+- Secret scan (gitleaks) is now clean (0 findings: history 61 commits, files, 3 images) after allow-listing 2 public Azure role ids in infra/main.bicep
+  (.gitleaks.toml + .gitleaksignore). The workflow now runs on every push to main + weekly Monday and FAILS on any finding.
+- M13 BUILT (4 Nov 2026), committed locally, not pushed: docs/SECURITY.md; dev tools upgraded (vite 8.3.5, vitest 5.1.0, @vitejs/plugin-react 6.2.1;
+  Node >= 22.12) - 0 critical / 0 high alerts left, 11 moderate accepted (ExcelJS inner packages: last release, built-in copies; React Router 6 -> 7 = route migration).
+  Dependabot alerts ON; automatic security-fix PRs OFF on purpose.
+- M14 BUILT (4 Nov 2026): docs/PRESENTER_RUNBOOK.md (both links, 15-minute script, what each of the 47 live samples does, troubleshooting, what to do when
+  Azure ends), docs/reports/ACCURACY_SUMMARY.md, docs/ARCHITECTURE_SLIDE.md. The owner rehearses the script once (reply linking needs real Gmail threading).
+- Next: push M13 + M14; the owner's final checks (demo link, live Demo Control, runbook rehearsal); then fix whatever the checks find.
+  Optional later: restamp the Azure history timestamps (`build_history --restamp` + new reset point); before ~25 Nov set LIVE_ENDED.
 - Dependabot triage 3 Nov (docs/reports/dependabot_triage_2026-11-03.md): shipped critical/high fixed (PyJWT 2.15.1, react-router-dom 6.30.6);
   left = medium only (react-router 7 major, minimatch/uuid inside the ExcelJS bundle); dev/build-only (vite, vitest, tinypool: 4 critical,
   1 high) are listed for M13.
